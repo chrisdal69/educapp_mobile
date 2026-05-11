@@ -25,6 +25,10 @@ function RootLayoutNav() {
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="forgot" options={{ headerShown: false }} />
       <Stack.Screen name="signup" options={{ headerShown: false }} />
+      <Stack.Screen name="changepassword" options={{ headerShown: false }} />
+      <Stack.Screen name="changemail" options={{ headerShown: false }} />
+      <Stack.Screen name="leaveclass" options={{ headerShown: false }} />
+      <Stack.Screen name="deleteaccount" options={{ headerShown: false }} />
       <Stack.Screen name="+not-found" />
     </Stack>
   );

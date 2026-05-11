@@ -1,4 +1,4 @@
-import { storageGet } from "./storage";
+import { storageDelete, storageGet } from "./storage";
 
 export const TOKEN_KEY = "auth_token";
 export const PENDING_TOKEN_KEY = "pending_token";
@@ -16,5 +16,9 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
-  return fetch(`${API_URL}${path}`, { ...options, headers });
+  const response = await fetch(`${API_URL}${path}`, { ...options, headers });
+  if (response.status === 401) {
+    await storageDelete(TOKEN_KEY);
+  }
+  return response;
 }

@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch(`${API_URL}/auth/login/select-class`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classId, pendingToken }),
+        body: JSON.stringify({ classId, pendingToken, clientType: "mobile" }),
       });
       const data = await res.json();
       if (!res.ok) {

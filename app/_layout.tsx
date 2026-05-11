@@ -29,6 +29,7 @@ function RootLayoutNav() {
       <Stack.Screen name="changemail" options={{ headerShown: false }} />
       <Stack.Screen name="leaveclass" options={{ headerShown: false }} />
       <Stack.Screen name="deleteaccount" options={{ headerShown: false }} />
+      <Stack.Screen name="manageclass" options={{ headerShown: false }} />
       <Stack.Screen name="+not-found" />
     </Stack>
   );

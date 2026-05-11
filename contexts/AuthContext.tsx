@@ -15,6 +15,7 @@ type User = {
   directoryname: string;
   repertoires: Repertoire[];
   adminRepertoires: string[];
+  isAdminAnywhere: boolean;
 };
 
 type ClassSummary = { id: string; publicname: string };
@@ -119,6 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         directoryname: data.directoryname,
         repertoires: data.repertoires ?? [],
         adminRepertoires: data.adminRepertoires ?? [],
+        isAdminAnywhere: !!data.isAdminAnywhere,
       });
       setTeachersClasses([]);
       setFollowedClasses([]);

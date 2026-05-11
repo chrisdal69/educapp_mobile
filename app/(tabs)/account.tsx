@@ -27,11 +27,20 @@ export default function AccountScreen() {
 
   const initials = `${user.prenom?.[0] ?? ""}${user.nom?.[0] ?? ""}`.toUpperCase();
 
+  const isAdminCurrentClass = user.role === "admin";
+  const canDeleteAccount = !user.isAdminAnywhere;
+
   const actions: { label: string; route: string; danger?: boolean }[] = [
     { label: "Changer le mot de passe", route: "/changepassword" },
-    { label: "Changer l'email", route: "/changemail" },
-    { label: "Quitter la classe", route: "/leaveclass" },
-    { label: "Supprimer le compte", route: "/deleteaccount", danger: true },
+    { label: "Changer l'email",         route: "/changemail" },
+    ...(isAdminCurrentClass
+      ? [{ label: "Gérer ma classe", route: "/manageclass" }]
+      : [{ label: "Quitter la classe", route: "/leaveclass" }]
+    ),
+    ...(canDeleteAccount
+      ? [{ label: "Supprimer le compte", route: "/deleteaccount", danger: true }]
+      : []
+    ),
   ];
 
   return (

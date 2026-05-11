@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
 
+const PUBLIC_SCREENS = ["login", "forgot", "signup"];
+
 function RootLayoutNav() {
   const { user, isReady } = useAuth();
   const router = useRouter();
@@ -9,10 +11,10 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (!isReady) return;
-    const onLoginScreen = segments[0] === "login";
-    if (!user && !onLoginScreen) {
+    const onPublic = PUBLIC_SCREENS.includes(segments[0]);
+    if (!user && !onPublic) {
       router.replace("/login");
-    } else if (user && onLoginScreen) {
+    } else if (user && segments[0] === "login") {
       router.replace("/(tabs)");
     }
   }, [user, isReady]);
@@ -21,6 +23,8 @@ function RootLayoutNav() {
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="forgot" options={{ headerShown: false }} />
+      <Stack.Screen name="signup" options={{ headerShown: false }} />
       <Stack.Screen name="+not-found" />
     </Stack>
   );

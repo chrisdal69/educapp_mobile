@@ -10,11 +10,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function LoginScreen() {
   const { login, selectClass, teachersClasses, followedClasses, pendingClassSelection } =
     useAuth();
+  const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -145,6 +147,12 @@ export default function LoginScreen() {
             <Text style={styles.buttonText}>Se connecter</Text>
           )}
         </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/forgot" as any)} style={styles.link}>
+          <Text style={styles.linkText}>Mot de passe oublié ?</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/signup" as any)} style={styles.link}>
+          <Text style={styles.linkText}>S'inscrire</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -186,6 +194,8 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: "#25292e", fontSize: 16, fontWeight: "bold" },
   error: { color: "#ff6b6b", textAlign: "center", marginBottom: 16 },
+  link: { marginTop: 16, alignItems: "center" },
+  linkText: { color: "#ffd33d", fontSize: 14 },
   sectionLabel: {
     color: "#aaa",
     fontSize: 14,

@@ -29,19 +29,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="account"
-        options={{
-          title: "Account",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "person-sharp" : "person-outline"}
-              color={color}
-              size={24}
-            />
-          ),
-        }}
-      />
+
       <Tabs.Screen
         name="research"
         options={{
@@ -49,6 +37,19 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? "search-sharp" : "search-outline"}
+              color={color}
+              size={24}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="account"
+        options={{
+          title: "Account",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "person-sharp" : "person-outline"}
               color={color}
               size={24}
             />

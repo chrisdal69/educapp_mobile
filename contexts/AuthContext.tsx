@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { API_URL, TOKEN_KEY, PENDING_TOKEN_KEY } from "../utils/apiClient";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import { AppState, DeviceEventEmitter } from "react-native";
+import { router } from "expo-router";
+import { API_URL, TOKEN_KEY, PENDING_TOKEN_KEY, UNAUTHORIZED_EVENT } from "../utils/apiClient";
 import { storageGet, storageSet, storageDelete } from "../utils/storage";
 
 type Repertoire = { slug: string; label: string };
@@ -42,10 +44,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [teachersClasses, setTeachersClasses] = useState<ClassSummary[]>([]);
   const [followedClasses, setFollowedClasses] = useState<ClassSummary[]>([]);
   const [pendingClassSelection, setPendingClassSelection] = useState(false);
+  const appState = useRef(AppState.currentState);
 
   useEffect(() => {
     restoreSession();
+
+    // Forcer logout sur 401 reçu par apiFetch depuis n'importe quel écran
+    const authSub = DeviceEventEmitter.addListener(UNAUTHORIZED_EVENT, () => {
+      setUser(null);
+      setTeachersClasses([]);
+      setFollowedClasses([]);
+      setPendingClassSelection(false);
+      router.replace("/login" as any);
+    });
+
+    // Revalider le token quand l'app revient au premier plan
+    const appStateSub = AppState.addEventListener("change", (nextState) => {
+      if (appState.current.match(/inactive|background/) && nextState === "active") {
+        checkSession();
+      }
+      appState.current = nextState;
+    });
+
+    return () => {
+      authSub.remove();
+      appStateSub.remove();
+    };
   }, []);
+
+  // Revalidation silencieuse (retour au premier plan) — ne touche pas isReady
+  async function checkSession() {
+    try {
+      const token = await storageGet(TOKEN_KEY);
+      if (!token) { setUser(null); return; }
+      const res = await fetch(`${API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        await storageDelete(TOKEN_KEY);
+        setUser(null);
+      }
+    } catch {
+      // réseau indisponible — on garde l'état courant
+    }
+  }
 
   async function restoreSession() {
     try {

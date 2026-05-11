@@ -5,7 +5,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import OtpInput from "../components/OtpInput";
-import { apiFetch } from "../utils/apiClient";
+import { apiFetch, triggerUnauthorized } from "../utils/apiClient";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function ChangeMailScreen() {
@@ -80,11 +80,20 @@ export default function ChangeMailScreen() {
       const res  = await apiFetch("/users/change-email/verify", {
         method: "POST",
         body: JSON.stringify({ code }),
+        skipUnauthorized: true,
       });
       const data = await res.json();
       if (!res.ok) {
-        if (typeof data.remainingAttempts === "number") {
+        if (res.status === 401 && typeof data.remainingAttempts === "number") {
+          // Mauvais code — afficher le message, ne pas déconnecter
           setRemainingAttempts(data.remainingAttempts);
+          setError(data.error || data.message || "Code incorrect.");
+          return;
+        }
+        if (res.status === 401) {
+          // Vrai token expiré — déclencher le logout
+          await triggerUnauthorized();
+          return;
         }
         setError(data.message || data.error || "Code invalide.");
         return;

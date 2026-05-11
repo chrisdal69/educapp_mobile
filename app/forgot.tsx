@@ -222,7 +222,7 @@ export default function ForgotScreen() {
                 : <Text style={styles.btnSecondaryText}>Renvoyer le code</Text>}
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => { setStep(1); setError(""); setInfo(""); }}
+              onPress={() => { setStep(1); setError(""); setInfo(""); setCode(""); }}
               style={styles.linkWrap}
             >
               <Text style={styles.link}>← Retour</Text>

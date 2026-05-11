@@ -4,7 +4,7 @@ import {
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { apiFetch } from "../utils/apiClient";
+import { apiFetch, triggerUnauthorized } from "../utils/apiClient";
 
 const PASSWORD_RULES = [
   { key: "length", label: "Au moins 8 caractères", test: (p: string) => p.length >= 8 },
@@ -38,11 +38,20 @@ export default function ChangePasswordScreen() {
       const res  = await apiFetch("/users/change-password", {
         method: "POST",
         body: JSON.stringify({ oldPassword, newPassword }),
+        skipUnauthorized: true,
       });
       const data = await res.json();
       if (!res.ok) {
-        if (typeof data.remainingAttempts === "number") {
+        if (res.status === 401 && typeof data.remainingAttempts === "number") {
+          // Mauvais ancien mot de passe — afficher le message, ne pas déconnecter
           setRemainingAttempts(data.remainingAttempts);
+          setError(data.message || data.error || "Ancien mot de passe incorrect.");
+          return;
+        }
+        if (res.status === 401) {
+          // Vrai token expiré — déclencher le logout
+          await triggerUnauthorized();
+          return;
         }
         setError(data.message || data.error || "Erreur.");
         return;

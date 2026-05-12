@@ -1,9 +1,15 @@
 import { Text, View,  StyleSheet } from 'react-native';
+import TabList from '@/components/TabList';
+import Repertoires from '@/components/Repertoires';
+import Cards from '@/components/Cards';    
+
 
 export default function Index() {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Home screen</Text>
+     <Repertoires />
+     <Cards />
+     <TabList />      
     </View>
   );
 }

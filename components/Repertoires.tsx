@@ -1,6 +1,13 @@
 import { View, StyleSheet, Text } from "react-native";
+import type { ClasseRepertoire } from "@/types/cards";
 
-export default function Repertoires() {
+type Props = {
+  repertoires: ClasseRepertoire[];
+  selected: string | null;
+  onSelect: (slug: string) => void;
+};
+
+export default function Repertoires({ repertoires, selected, onSelect }: Props) {
   return (
     <View style={styles.container}>
       <Text>Repertoires</Text>

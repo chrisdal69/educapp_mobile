@@ -1,6 +1,11 @@
 import { View, Text, StyleSheet } from "react-native";
+import type { Card } from "@/types/cards";
 
-export default function TabList() {
+type Props = {
+  selectedCard: Card | null;
+};
+
+export default function TabList({ selectedCard }: Props) {
   return (
     <View style={styles.container}>
       <Text>TabList</Text>

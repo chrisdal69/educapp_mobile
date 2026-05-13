@@ -15,7 +15,7 @@ export default function TabList({ selectedCard }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 5,
+    flex: 6,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,

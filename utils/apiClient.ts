@@ -1,12 +1,19 @@
-import { DeviceEventEmitter } from "react-native";
+import { DeviceEventEmitter, Platform } from "react-native";
+import Constants from "expo-constants";
 import { storageDelete, storageGet } from "./storage";
 
 export const TOKEN_KEY = "auth_token";
 export const PENDING_TOKEN_KEY = "pending_token";
 export const UNAUTHORIZED_EVENT = "auth:unauthorized";
 
+const getDevHost = () => {
+  // L'émulateur Android ne peut pas joindre l'IP LAN du Mac — il utilise 10.0.2.2
+  if (Platform.OS === "android" && !Constants.isDevice) return "10.0.2.2";
+  return Constants.expoConfig?.hostUri?.split(":").shift() ?? "localhost";
+};
+
 export const API_URL = __DEV__
-  ? "http://localhost:3000"
+  ? `http://${getDevHost()}:3000`
   : "https://educappdf-back.vercel.app";
 
 export async function triggerUnauthorized() {

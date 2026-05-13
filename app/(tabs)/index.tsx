@@ -38,6 +38,7 @@ export default function Index() {
       />
       <Cards
         cards={cards}
+        repertoires={repertoires}
         selectedRepertoire={selectedRepertoire}
         selectedCard={selectedCard}
         onSelect={setSelectedCard}

@@ -1,5 +1,9 @@
 import { useEffect } from "react";
+import { Text } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
+
+(Text as any).defaultProps = { style: { fontFamily: "Inter_400Regular" } };
+import { useFonts, Inter_300Light, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
 import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import { ThemeProvider } from "../contexts/ThemeContext";
 
@@ -37,6 +41,16 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Inter_300Light,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
+
+  if (!fontsLoaded) return null;
+
   return (
     <ThemeProvider>
       <AuthProvider>

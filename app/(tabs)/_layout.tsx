@@ -10,10 +10,11 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: colors.text,
         headerStyle: { backgroundColor: colors.bg , height: 80},
         headerShadowVisible: false,
         headerTintColor: colors.text,
+        headerTitleAlign: "center",
         tabBarStyle: { backgroundColor: colors.bg, borderTopColor: colors.border },
       }}
     >

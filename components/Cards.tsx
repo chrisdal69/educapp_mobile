@@ -7,7 +7,8 @@ import {
   StyleSheet,
   useWindowDimensions,
 } from "react-native";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import type { ScrollView as ScrollViewType } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { buildCardBgUrl } from "@/utils/gcsPaths";
@@ -28,6 +29,19 @@ export default function Cards({ cards, repertoires, selectedRepertoire, selected
   const cardWidth = width * 0.55;
   const [containerHeight, setContainerHeight] = useState(0);
   const [failedMobile, setFailedMobile] = useState<Set<string>>(new Set());
+  const scrollRef = useRef<ScrollViewType>(null);
+
+  useEffect(() => {
+    if (!selectedCard || filtered.length === 0) return;
+    const index = filtered.findIndex((c) => c._id === selectedCard._id);
+    if (index === -1) return;
+    if (index === filtered.length - 1) {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    } else {
+      const x = index * (cardWidth + 10) + 2;
+      scrollRef.current?.scrollTo({ x, animated: true });
+    }
+  }, [selectedCard?._id]);
 
   const repOrder = repertoires.reduce<Record<string, number>>(
     (acc, r, i) => ({ ...acc, [r.repertoire]: i }),
@@ -54,11 +68,11 @@ export default function Cards({ cards, repertoires, selectedRepertoire, selected
       onLayout={(e) => setContainerHeight(e.nativeEvent.layout.height)}
     >
       <ScrollView
+        ref={scrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
-        snapToInterval={cardWidth + 10}
-        snapToAlignment="start"
+        snapToOffsets={filtered.map((_, i) => i * (cardWidth + 10) + 2)}
         decelerationRate="fast"
       >
         {filtered.map((card) => {
@@ -82,30 +96,30 @@ export default function Cards({ cards, repertoires, selectedRepertoire, selected
               style={[
                 styles.card,
                 { width: cardWidth, height: containerHeight },
-                isSelected
-                  ? { borderColor: colors.primary }
-                  : { borderColor: "transparent" },
+                isSelected && { ...styles.cardSelected, shadowColor: colors.text },
               ]}
             >
-              <ImageBackground
-                source={bgUri ? { uri: bgUri } : undefined}
-                style={styles.image}
-                imageStyle={styles.imageStyle}
-                onError={() =>
-                  useMobile &&
-                  setFailedMobile((prev) => new Set([...prev, card._id]))
-                }
-              >
-                {!bgUri && <View style={[styles.imageFallback, { backgroundColor: colors.cardBg }]} />}
-                <View style={styles.overlay}>
-                  <Text style={styles.repertoire} numberOfLines={1}>
-                    {card.repertoire.toUpperCase()}
-                  </Text>
-                  <Text style={styles.titre} numberOfLines={2}>
-                    {card.titre}
-                  </Text>
-                </View>
-              </ImageBackground>
+              <View style={styles.cardInner}>
+                <ImageBackground
+                  source={bgUri ? { uri: bgUri } : undefined}
+                  style={styles.image}
+                  imageStyle={styles.imageStyle}
+                  onError={() =>
+                    useMobile &&
+                    setFailedMobile((prev) => new Set([...prev, card._id]))
+                  }
+                >
+                  {!bgUri && <View style={[styles.imageFallback, { backgroundColor: colors.cardBg }]} />}
+                  <View style={styles.overlay}>
+                    <Text style={styles.repertoire} numberOfLines={1}>
+                      {card.repertoire.toUpperCase()}
+                    </Text>
+                    <Text style={styles.titre} numberOfLines={2}>
+                      {card.titre}
+                    </Text>
+                  </View>
+                </ImageBackground>
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -126,7 +140,16 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 12,
-    borderWidth: 2,
+  },
+  cardSelected: {
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 18,
+  },
+  cardInner: {
+    flex: 1,
+    borderRadius: 12,
     overflow: "hidden",
   },
   image: {

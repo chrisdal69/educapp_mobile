@@ -8,11 +8,11 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import AppText from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useAuth } from "../contexts/AuthContext";
@@ -244,20 +244,20 @@ export default function LoginScreen() {
       if (allClasses.length === 0) {
         return (
           <View style={styles.panelBody}>
-            <Text style={styles.panelTitle}>MathsApp</Text>
-            <Text style={styles.panelSubtitle}>
+            <AppText style={styles.panelTitle}>MathsApp</AppText>
+            <AppText style={styles.panelSubtitle}>
               Vous n'êtes inscrit à aucune classe active.
-            </Text>
+            </AppText>
           </View>
         );
       }
 
       return (
         <View style={styles.panelBody}>
-          <Text style={styles.panelTitle}>Choisir une classe</Text>
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <AppText style={styles.panelTitle}>Choisir une classe</AppText>
+          {error ? <AppText style={styles.error}>{error}</AppText> : null}
           {teachersClasses.length > 0 && (
-            <Text style={styles.sectionLabel}>Mes classes (professeur)</Text>
+            <AppText style={styles.sectionLabel}>Mes classes (professeur)</AppText>
           )}
           {teachersClasses.map((cl) => (
             <TouchableOpacity
@@ -269,11 +269,11 @@ export default function LoginScreen() {
               <View
                 style={[styles.checkbox, selectedClassId === cl.id && styles.checkboxSelected]}
               />
-              <Text style={styles.classItemText}>{cl.publicname}</Text>
+              <AppText style={styles.classItemText}>{cl.publicname}</AppText>
             </TouchableOpacity>
           ))}
           {followedClasses.length > 0 && (
-            <Text style={styles.sectionLabel}>Classes suivies</Text>
+            <AppText style={styles.sectionLabel}>Classes suivies</AppText>
           )}
           {followedClasses.map((cl) => (
             <TouchableOpacity
@@ -285,7 +285,7 @@ export default function LoginScreen() {
               <View
                 style={[styles.checkbox, selectedClassId === cl.id && styles.checkboxSelected]}
               />
-              <Text style={styles.classItemText}>{cl.publicname}</Text>
+              <AppText style={styles.classItemText}>{cl.publicname}</AppText>
             </TouchableOpacity>
           ))}
           <TouchableOpacity
@@ -296,14 +296,14 @@ export default function LoginScreen() {
             onPress={() => selectedClassId && handleSelectClass(selectedClassId)}
             disabled={!selectedClassId}
           >
-            <Text
+            <AppText
               style={[
                 styles.submitButtonText,
                 selectedClassId ? styles.submitButtonTextActive : styles.submitButtonTextIdle,
               ]}
             >
               Valider
-            </Text>
+            </AppText>
           </TouchableOpacity>
         </View>
       );
@@ -311,9 +311,9 @@ export default function LoginScreen() {
 
     return (
       <View style={styles.panelBody}>
-        <Text style={styles.panelTitle}>Se connecter</Text>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <Text style={styles.fieldLabel}>Email</Text>
+        <AppText style={styles.panelTitle}>Se connecter</AppText>
+        {error ? <AppText style={styles.error}>{error}</AppText> : null}
+        <AppText style={styles.fieldLabel}>Email</AppText>
         <TextInput
           style={styles.input}
           placeholderTextColor="#bbb"
@@ -323,7 +323,7 @@ export default function LoginScreen() {
           keyboardType="email-address"
           editable={!loading}
         />
-        <Text style={styles.fieldLabel}>Mot de passe</Text>
+        <AppText style={styles.fieldLabel}>Mot de passe</AppText>
         <View style={styles.inputRow}>
           <TextInput
             style={[styles.input, styles.inputWithEye]}
@@ -356,21 +356,21 @@ export default function LoginScreen() {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text
+            <AppText
               style={[
                 styles.submitButtonText,
                 isFormFilled ? styles.submitButtonTextActive : styles.submitButtonTextIdle,
               ]}
             >
               Se connecter
-            </Text>
+            </AppText>
           )}
         </TouchableOpacity>
         <TouchableOpacity onPress={() => router.push("/forgot" as any)} style={styles.link}>
-          <Text style={styles.linkText}>Mot de passe oublié ?</Text>
+          <AppText style={styles.linkText}>Mot de passe oublié ?</AppText>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => router.push("/signup" as any)} style={styles.link}>
-          <Text style={styles.linkText}>S'inscrire</Text>
+          <AppText style={styles.linkText}>S'inscrire</AppText>
         </TouchableOpacity>
       </View>
     );
@@ -430,8 +430,7 @@ const styles = StyleSheet.create({
   },
   floatLetter: {
     position: "absolute",
-    fontFamily: Platform.OS === "ios" ? "Courier New" : "monospace",
-    fontWeight: "300",
+    fontFamily: "CourierNew",
     fontSize: FONT_SIZE,
     color: "#1a1a1a",
   },

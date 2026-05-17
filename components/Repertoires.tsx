@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import { View, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import AppText from "@/components/AppText";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { ClasseRepertoire } from "@/types/cards";
 
@@ -26,9 +27,9 @@ export default function Repertoires({ repertoires, selected, onSelect }: Props) 
               onPress={() => onSelect(r.repertoire)}
               style={styles.item}
             >
-              <Text style={[styles.label, { color: isSelected ? colors.text : colors.muted }]}>
+              <AppText style={[styles.label, { color: isSelected ? colors.text : colors.muted }]}>
                 {r.repertoire}
-              </Text>
+              </AppText>
               <View
                 style={[
                   styles.underline,

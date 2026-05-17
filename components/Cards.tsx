@@ -1,12 +1,12 @@
 import {
   View,
-  Text,
   ScrollView,
   TouchableOpacity,
   ImageBackground,
   StyleSheet,
   useWindowDimensions,
 } from "react-native";
+import AppText from "@/components/AppText";
 import { useState, useRef, useEffect } from "react";
 import type { ScrollView as ScrollViewType } from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -111,12 +111,12 @@ export default function Cards({ cards, repertoires, selectedRepertoire, selected
                 >
                   {!bgUri && <View style={[styles.imageFallback, { backgroundColor: colors.cardBg }]} />}
                   <View style={styles.overlay}>
-                    <Text style={styles.repertoire} numberOfLines={1}>
+                    <AppText style={styles.repertoire} numberOfLines={1}>
                       {card.repertoire.toUpperCase()}
-                    </Text>
-                    <Text style={styles.titre} numberOfLines={2}>
+                    </AppText>
+                    <AppText style={styles.titre} numberOfLines={2}>
                       {card.titre}
-                    </Text>
+                    </AppText>
                   </View>
                 </ImageBackground>
               </View>

@@ -1,9 +1,10 @@
-import { Text, View, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import AppText from '@/components/AppText';
 
 export default function AboutScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Research screen</Text>
+      <AppText style={styles.text}>Research screen</AppText>
     </View>
   );
 }

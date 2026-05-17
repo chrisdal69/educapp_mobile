@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
+import AppText from "@/components/AppText";
 import type { Card } from "@/types/cards";
 
 type Props = { card: Card; onClose: () => void };
@@ -6,7 +7,7 @@ type Props = { card: Card; onClose: () => void };
 export default function VideoBlock({ card, onClose }: Props) {
   return (
     <View style={styles.container}>
-      <Text>VideoBlock</Text>
+      <AppText>VideoBlock</AppText>
     </View>
   );
 }

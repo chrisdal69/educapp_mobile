@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   View,
-  Text,
   TouchableOpacity,
   ScrollView,
   Modal,
@@ -9,6 +8,7 @@ import {
   useWindowDimensions,
   Platform,
 } from "react-native";
+import AppText from "@/components/AppText";
 import type { ComponentProps } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -73,7 +73,7 @@ export default function TabList({ selectedCard }: Props) {
         style={[styles.container, { backgroundColor: colors.bg }]}
         onLayout={(e) => setContainerHeight(e.nativeEvent.layout.height)}
       >
-        <Text style={{ color: colors.muted }}>Sélectionnez une carte</Text>
+        <AppText style={{ color: colors.muted }}>Sélectionnez une carte</AppText>
       </View>
     );
   }
@@ -178,25 +178,25 @@ export default function TabList({ selectedCard }: Props) {
               style={[styles.tileIcon, { color: colors.textSecondary }]}
             />
             <View>
-              <Text style={[styles.tileLabel, { color: colors.text }]}>
+              <AppText style={[styles.tileLabel, { color: colors.text }]}>
                 {zone.label}
-              </Text>
+              </AppText>
               {!!zone.subtitle && (
-                <Text
+                <AppText
                   style={[styles.tileSubtitle, { color: colors.textSecondary }]}
                 >
                   {zone.subtitle}
-                </Text>
+                </AppText>
               )}
             </View>
           </View>
           <View style={styles.descRight}>
-            <Text
+            <AppText
               style={[styles.descCardTitle, { color: colors.text }]}
               numberOfLines={3}
             >
               {selectedCard.titre}
-            </Text>
+            </AppText>
           </View>
         </View>
       ) : (
@@ -206,15 +206,15 @@ export default function TabList({ selectedCard }: Props) {
             size={40}
             style={[styles.tileIcon, { color: colors.textSecondary }]}
           />
-          <Text style={[styles.tileLabel, { color: colors.text }]}>
+          <AppText style={[styles.tileLabel, { color: colors.text }]}>
             {zone.label}
-          </Text>
+          </AppText>
           {!!zone.subtitle && (
-            <Text
+            <AppText
               style={[styles.tileSubtitle, { color: colors.textSecondary }]}
             >
               {zone.subtitle}
-            </Text>
+            </AppText>
           )}
         </>
       )}
@@ -269,8 +269,8 @@ export default function TabList({ selectedCard }: Props) {
               ]}
             >
               <View style={styles.modalHeaderText}>
-                <Text style={[styles.modalTitle , { color: colors.text }]}>{activeZoneData?.label}</Text>
-                <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>{modalSubtitle}</Text>
+                <AppText style={[styles.modalTitle , { color: colors.text }]}>{activeZoneData?.label}</AppText>
+                <AppText style={[styles.modalSubtitle, { color: colors.textSecondary }]}>{modalSubtitle}</AppText>
               </View>
               <TouchableOpacity
                 onPress={() => setActiveZone(null)}

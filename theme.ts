@@ -40,7 +40,7 @@ const dark: ThemeColors = {
   cloud: "#A2C639",
   video: "#7F9C96",
 
-  bgdescription: "hsl(75.32, 55.29%,3%)",  
+  bgdescription: "hsl(75.32, 55.29%,4%)",  
   bgdocuments: "hsl(193.77, 28.37%, 5%)",
   bgquizz: "hsl(85.12, 21.83%, 5%)",
   bgflash: "hsl(108.65, 18.41%, 5%)",
@@ -69,7 +69,7 @@ const light: ThemeColors = {
   cloud: "#ddd3cb",
   video: "#b3cdcc",
 
- bgdescription: "hsl(26.67, 20.93%, 96%)",  
+ bgdescription: "hsl(26.67, 20.93%, 95%)",  
   bgdocuments: "hsl(267, 8.2%, 91%)",
   bgquizz: "hsl(228, 12.08%, 94%)",
   bgflash: "hsl(233.33, 10.11%, 94%)",

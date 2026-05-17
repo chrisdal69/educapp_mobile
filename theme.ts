@@ -13,8 +13,14 @@ export type ThemeColors = {
   flash: string;
   cloud: string;
   video: string;
-  boutonyes: string,
-  boutonno: string,  
+  bgdescription: string;  
+  bgdocuments: string;
+  bgquizz: string;
+  bgflash: string;
+  bgcloud: string;
+  bgvideo: string;
+  boutonyes: string;
+  boutonno: string;  
 };
 
 const dark: ThemeColors = {
@@ -33,6 +39,14 @@ const dark: ThemeColors = {
   flash: "#8FAD88",
   cloud: "#A2C639",
   video: "#7F9C96",
+
+  bgdescription: "hsl(75.32, 55.29%,3%)",  
+  bgdocuments: "hsl(193.77, 28.37%, 5%)",
+  bgquizz: "hsl(85.12, 21.83%, 5%)",
+  bgflash: "hsl(108.65, 18.41%, 5%)",
+  bgcloud: "hsl(75.32, 55.29%, 5%)",
+  bgvideo: "hsl(167.59, 12.78%, 5%)",
+
   boutonyes: "#152e1d",
   boutonno: "#746f18",  
   
@@ -54,6 +68,15 @@ const light: ThemeColors = {
   flash: "#cecfd7",
   cloud: "#ddd3cb",
   video: "#b3cdcc",
+
+ bgdescription: "hsl(26.67, 20.93%, 96%)",  
+  bgdocuments: "hsl(267, 8.2%, 91%)",
+  bgquizz: "hsl(228, 12.08%, 94%)",
+  bgflash: "hsl(233.33, 10.11%, 94%)",
+  bgcloud: "hsl(26.67, 20.93%, 95%)",
+  bgvideo: "hsl(177.69, 20.63%, 95%)",
+
+
   boutonyes: "#B8E5C3",
   boutonno: "#E5B8B9",
 };

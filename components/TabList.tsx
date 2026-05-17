@@ -148,6 +148,16 @@ export default function TabList({ selectedCard }: Props) {
   const activeZoneData = zones.find((z) => z.key === activeZone);
   const modalSubtitle = `${user?.publicname ?? ""} - ${selectedCard.titre}`;
 
+  const zoneBgColorKey: Record<ZoneKey, keyof ThemeColors> = {
+    description: "bgdescription",
+    documents: "bgdocuments",
+    quizz: "bgquizz",
+    flash: "bgflash",
+    video: "bgvideo",
+    cloud: "bgcloud",
+  };
+  const modalBg = activeZone ? colors[zoneBgColorKey[activeZone]] as string : colors.bg;
+
   const renderTile = (zone: Zone, fullWidth = false) => (
     <TouchableOpacity
       key={zone.key}
@@ -247,7 +257,7 @@ export default function TabList({ selectedCard }: Props) {
         onRequestClose={() => setActiveZone(null)}
       >
         <View style={styles.overlay}>
-          <View style={[styles.sheet, { backgroundColor: colors.bg }]}>
+          <View style={[styles.sheet, { backgroundColor: modalBg }]}>
             <View
               style={[
                 styles.modalHeader,
@@ -371,7 +381,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   tileSubtitle: {
-    color: "rgba(255,255,255,0.75)",
     fontSize: 14,
     marginTop: 5,
   },

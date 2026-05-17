@@ -7,6 +7,7 @@ import {
   Modal,
   StyleSheet,
   useWindowDimensions,
+  Platform,
 } from "react-native";
 import type { ComponentProps } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -258,14 +259,14 @@ export default function TabList({ selectedCard }: Props) {
               ]}
             >
               <View style={styles.modalHeaderText}>
-                <Text style={styles.modalTitle}>{activeZoneData?.label}</Text>
-                <Text style={styles.modalSubtitle}>{modalSubtitle}</Text>
+                <Text style={[styles.modalTitle , { color: colors.text }]}>{activeZoneData?.label}</Text>
+                <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>{modalSubtitle}</Text>
               </View>
               <TouchableOpacity
                 onPress={() => setActiveZone(null)}
                 style={styles.closeBtn}
               >
-                <Ionicons name="close" size={24} color="#fff" />
+                <Ionicons name="close" size={30} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -376,11 +377,10 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.5)",
   },
   sheet: {
-    height: "92%",
+    flex: 1,
+    marginTop: Platform.OS === "android" ? "1%" : "13%",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: "hidden",
@@ -397,12 +397,10 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   modalTitle: {
-    color: "#fff",
     fontSize: 28,
     fontWeight: "700",
   },
   modalSubtitle: {
-    color: "rgba(255,255,255,0.8)",
     fontSize: 13,
     marginTop: 4,
   },

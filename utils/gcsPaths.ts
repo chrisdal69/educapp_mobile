@@ -7,6 +7,21 @@ function toMobileFilename(bg: string): string {
   return `${bg.slice(0, lastDot)}Mobile${bg.slice(lastDot)}`;
 }
 
+export function buildCardFileUrl({
+  directoryname,
+  repertoire,
+  num,
+  filename,
+}: {
+  directoryname: string;
+  repertoire: string;
+  num: number;
+  filename: string;
+}): string {
+  if (!directoryname || !repertoire || !filename) return "";
+  return `https://storage.googleapis.com/${BUCKET}/${ENV_FOLDER}/${directoryname}/${repertoire}/tag${num}/${filename}`;
+}
+
 export function buildCardBgUrl({
   directoryname,
   repertoire,

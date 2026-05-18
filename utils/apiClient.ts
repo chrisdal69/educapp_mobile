@@ -7,9 +7,10 @@ export const PENDING_TOKEN_KEY = "pending_token";
 export const UNAUTHORIZED_EVENT = "auth:unauthorized";
 
 const getDevHost = () => {
-  // L'émulateur Android ne peut pas joindre l'IP LAN du Mac — il utilise 10.0.2.2
   if (Platform.OS === "android" && !Constants.isDevice) return "10.0.2.2";
-  return Constants.expoConfig?.hostUri?.split(":").shift() ?? "localhost";
+  const fromEnv = process.env.EXPO_PUBLIC_DEV_HOST;
+  if (fromEnv) return fromEnv;
+  return Constants.expoConfig?.hostUri?.split(":").shift() ?? "192.168.1.39";
 };
 
 export const API_URL = __DEV__

@@ -1,3 +1,12 @@
+// Polyfill crypto.getRandomValues for react-native-blob-util (uuid)
+if (typeof global.crypto === "undefined") (global as any).crypto = {};
+if (typeof (global as any).crypto.getRandomValues === "undefined") {
+  (global as any).crypto.getRandomValues = (array: Uint8Array) => {
+    for (let i = 0; i < array.length; i++) array[i] = Math.floor(Math.random() * 256);
+    return array;
+  };
+}
+
 import { useEffect } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useFonts, Inter_300Light, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";

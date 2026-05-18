@@ -1,13 +1,24 @@
-import { useState } from "react";
-import { View, StyleSheet, ScrollView, TouchableOpacity, Linking } from "react-native";
+import { useState, useEffect } from "react";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Linking,
+  Alert,
+  TextInput,
+  Modal,
+} from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import AppText from "@/components/AppText";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { buildCardFileUrl } from "@/utils/gcsPaths";
-import type { Card, CardHref } from "@/types/cards";
+import { apiFetch } from "@/utils/apiClient";
+import type { Card, CardHref, UserFileEntry } from "@/types/cards";
 import PdfViewer from "@/components/card/PdfViewer";
+import ManuscritUploader from "@/components/card/ManuscritUploader";
 
 type Props = { card: Card; onClose: () => void };
 type FileType = "pdf" | "py" | "video" | "image" | "doc" | "other";
@@ -28,9 +39,7 @@ function withAlpha(color: string, alpha: number): string {
   }
   if (color.startsWith("#")) {
     const hex = color.replace("#", "");
-    const full = hex.length === 3
-      ? hex.split("").map((c) => c + c).join("")
-      : hex;
+    const full = hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex;
     const r = parseInt(full.slice(0, 2), 16);
     const g = parseInt(full.slice(2, 4), 16);
     const b = parseInt(full.slice(4, 6), 16);
@@ -61,6 +70,28 @@ export default function FilesBlock({ card }: Props) {
   const { colors } = useTheme();
   const { user } = useAuth();
   const [pdfViewer, setPdfViewer] = useState<{ url: string; title: string } | null>(null);
+  const [showUploader, setShowUploader] = useState(false);
+  const [userFiles, setUserFiles] = useState<UserFileEntry[]>([]);
+  const [renaming, setRenaming] = useState<UserFileEntry | null>(null);
+  const [newName, setNewName] = useState("");
+
+  useEffect(() => {
+    fetchUserFiles();
+  }, [card._id]);
+
+  const fetchUserFiles = async () => {
+    try {
+      const res = await apiFetch(
+        `/upload/userfiles?cardId=${card._id}&repertoire=${card.repertoire}&num=${card.num}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setUserFiles(data);
+      }
+    } catch {
+      // silently fail — list stays empty
+    }
+  };
 
   const files = (card.fichiers ?? []).filter((f) => f.visible !== false);
 
@@ -81,6 +112,62 @@ export default function FilesBlock({ card }: Props) {
     }
   };
 
+  const openUserFile = (f: UserFileEntry) => {
+    setPdfViewer({ url: f.url, title: f.name });
+  };
+
+  const deleteUserFile = (f: UserFileEntry) => {
+    Alert.alert("Supprimer", `Supprimer "${f.name}" ?`, [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Supprimer",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await apiFetch("/upload/userfiles", {
+              method: "DELETE",
+              body: JSON.stringify({
+                cardId: card._id,
+                filename: f.filename,
+                repertoire: card.repertoire,
+                num: card.num,
+              }),
+            });
+            setUserFiles((prev) => prev.filter((u) => u.filename !== f.filename));
+          } catch {
+            Alert.alert("Erreur", "Impossible de supprimer le fichier.");
+          }
+        },
+      },
+    ]);
+  };
+
+  const startRename = (f: UserFileEntry) => {
+    setRenaming(f);
+    setNewName(f.name);
+  };
+
+  const confirmRename = async () => {
+    if (!renaming || !newName.trim()) return;
+    try {
+      await apiFetch("/upload/userfiles/rename", {
+        method: "PATCH",
+        body: JSON.stringify({
+          cardId: card._id,
+          filename: renaming.filename,
+          newDisplayName: newName.trim(),
+        }),
+      });
+      setUserFiles((prev) =>
+        prev.map((u) => (u.filename === renaming.filename ? { ...u, name: newName.trim() } : u))
+      );
+    } catch {
+      Alert.alert("Erreur", "Impossible de renommer le fichier.");
+    }
+    setRenaming(null);
+    setNewName("");
+  };
+
   return (
     <View style={styles.wrapper}>
       <ScrollView
@@ -88,12 +175,10 @@ export default function FilesBlock({ card }: Props) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {/* Fichiers enseignant */}
         {files.map((f, index) => {
           const type = getFileType(f.href);
-          const bg =
-            index % 2 === 0
-              ? withAlpha(colors.documents, 0.5)
-              : colors.documents;
+          const bg = index % 2 === 0 ? withAlpha(colors.documents, 0.5) : colors.documents;
           return (
             <TouchableOpacity
               key={`${f.href}-${index}`}
@@ -119,10 +204,45 @@ export default function FilesBlock({ card }: Props) {
           );
         })}
 
+        {/* Fichiers élève */}
+        {userFiles.map((f, index) => {
+          const bg = (files.length + index) % 2 === 0
+            ? withAlpha(colors.documents, 0.5)
+            : colors.documents;
+          return (
+            <TouchableOpacity
+              key={f.filename}
+              style={[styles.item, { backgroundColor: bg }]}
+              onPress={() => openUserFile(f)}
+              activeOpacity={0.75}
+            >
+              <View style={styles.iconBox}>
+                <MaterialCommunityIcons name="file-pdf-box" size={34} color="#e74c3c" />
+              </View>
+              <View style={styles.info}>
+                <AppText style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+                  {f.name}
+                </AppText>
+                <AppText style={[styles.sub, { color: colors.textSecondary }]}>Mon fichier</AppText>
+              </View>
+              <View style={styles.userFileActions}>
+                <TouchableOpacity onPress={() => startRename(f)} hitSlop={8}>
+                  <Ionicons name="pencil-outline" size={24} color={colors.textSecondary} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => deleteUserFile(f)} hitSlop={8}>
+                  <Ionicons name="trash-outline" size={24} color="#e74c3c" />
+                </TouchableOpacity>
+                <Ionicons name="person-outline" size={24} color={colors.textSecondary} />
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+
+        {/* Bouton upload */}
         <TouchableOpacity
           style={[styles.uploadBtn, { backgroundColor: withAlpha(colors.documents, 0.5) }]}
           activeOpacity={0.75}
-          onPress={() => {}}
+          onPress={() => setShowUploader(true)}
         >
           <AppText style={[styles.uploadText, { color: colors.text }]}>
             Upload cours manuscrit
@@ -139,6 +259,41 @@ export default function FilesBlock({ card }: Props) {
           onClose={() => setPdfViewer(null)}
         />
       )}
+
+      <ManuscritUploader
+        card={card}
+        visible={showUploader}
+        onClose={() => setShowUploader(false)}
+        onUploadComplete={(file) => setUserFiles((prev) => [...prev, file])}
+      />
+
+      {/* Modal renommage */}
+      <Modal visible={!!renaming} transparent animationType="fade" onRequestClose={() => setRenaming(null)}>
+        <View style={styles.renameOverlay}>
+          <View style={[styles.renameBox, { backgroundColor: colors.bgdocuments }]}>
+            <AppText style={[styles.renameTitle, { color: colors.text }]}>Renommer</AppText>
+            <TextInput
+              style={[styles.renameInput, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.documents }]}
+              value={newName}
+              onChangeText={setNewName}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={confirmRename}
+            />
+            <View style={styles.renameActions}>
+              <TouchableOpacity onPress={() => setRenaming(null)} style={styles.renameBtn}>
+                <AppText style={{ color: colors.textSecondary }}>Annuler</AppText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={confirmRename}
+                style={[styles.renameBtn, { backgroundColor: colors.documents, borderRadius: 8 }]}
+              >
+                <AppText style={{ color: colors.text, fontWeight: "600" }}>OK</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -153,16 +308,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     gap: 12,
-    height: 80,
+    minHeight: 80,
   },
-  iconBox: {
-    width: 36,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  info: { flex: 1   },
+  iconBox: { width: 36, alignItems: "center", justifyContent: "center" },
+  info: { flex: 1 },
   name: { fontSize: 18, fontWeight: "600" },
   sub: { fontSize: 14, marginTop: 2 },
+  userFileActions: { flexDirection: "row", alignItems: "center", gap: 12 },
   uploadBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -172,4 +324,21 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   uploadText: { fontSize: 15, fontWeight: "500" },
+  renameOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 30,
+  },
+  renameBox: {
+    width: "100%",
+    borderRadius: 16,
+    padding: 20,
+    gap: 14,
+  },
+  renameTitle: { fontSize: 18, fontWeight: "700" },
+  renameInput: { borderWidth: 1, borderRadius: 10, padding: 12, fontSize: 16 },
+  renameActions: { flexDirection: "row", justifyContent: "flex-end", gap: 12 },
+  renameBtn: { padding: 10, paddingHorizontal: 16 },
 });

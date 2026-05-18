@@ -41,6 +41,13 @@ export type Card = {
   classe: string;
 };
 
+export type UserFileEntry = {
+  name: string;
+  filename: string;
+  date: string;
+  url: string;
+};
+
 export type ClasseRepertoire = {
   repertoire: string;
   bgcolor: string;

@@ -72,7 +72,6 @@ export default function FilesBlock({ card }: Props) {
   const [pdfViewer, setPdfViewer] = useState<{ url: string; title: string } | null>(null);
   const [showUploader, setShowUploader] = useState(false);
   const [userFiles, setUserFiles] = useState<UserFileEntry[]>([]);
-  const [nbUserFiles, setNbUserFiles] = useState(0);
   const [renaming, setRenaming] = useState<UserFileEntry | null>(null);
   const [newName, setNewName] = useState("");
 
@@ -87,8 +86,7 @@ export default function FilesBlock({ card }: Props) {
       );
       if (res.ok) {
         const data = await res.json();
-        setUserFiles(data.files ?? []);
-        setNbUserFiles(data.nbUserFiles ?? 0);
+        setUserFiles(Array.isArray(data) ? data : (data.files ?? []));
       }
     } catch {
       // silently fail — list stays empty
@@ -241,7 +239,7 @@ export default function FilesBlock({ card }: Props) {
         })}
 
         {/* Bouton upload — visible uniquement si quota autorisé et non atteint */}
-        {nbUserFiles > 0 && userFiles.length < nbUserFiles && (
+        {(card.nbUserFiles ?? 0) > 0 && userFiles.length < (card.nbUserFiles ?? 0) && (
           <TouchableOpacity
             style={[styles.uploadBtn, {
               backgroundColor: (files.length + userFiles.length) % 2 === 0

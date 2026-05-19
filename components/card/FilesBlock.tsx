@@ -72,6 +72,7 @@ export default function FilesBlock({ card }: Props) {
   const [pdfViewer, setPdfViewer] = useState<{ url: string; title: string } | null>(null);
   const [showUploader, setShowUploader] = useState(false);
   const [userFiles, setUserFiles] = useState<UserFileEntry[]>([]);
+  const [nbUserFiles, setNbUserFiles] = useState(0);
   const [renaming, setRenaming] = useState<UserFileEntry | null>(null);
   const [newName, setNewName] = useState("");
 
@@ -86,7 +87,8 @@ export default function FilesBlock({ card }: Props) {
       );
       if (res.ok) {
         const data = await res.json();
-        setUserFiles(data);
+        setUserFiles(data.files ?? []);
+        setNbUserFiles(data.nbUserFiles ?? 0);
       }
     } catch {
       // silently fail — list stays empty
@@ -238,17 +240,23 @@ export default function FilesBlock({ card }: Props) {
           );
         })}
 
-        {/* Bouton upload */}
-        <TouchableOpacity
-          style={[styles.uploadBtn, { backgroundColor: withAlpha(colors.documents, 0.5) }]}
-          activeOpacity={0.75}
-          onPress={() => setShowUploader(true)}
-        >
-          <AppText style={[styles.uploadText, { color: colors.text }]}>
-            Upload cours manuscrit
-          </AppText>
-          <Ionicons name="camera-outline" size={28} color={colors.text} />
-        </TouchableOpacity>
+        {/* Bouton upload — visible uniquement si quota autorisé et non atteint */}
+        {nbUserFiles > 0 && userFiles.length < nbUserFiles && (
+          <TouchableOpacity
+            style={[styles.uploadBtn, {
+              backgroundColor: (files.length + userFiles.length) % 2 === 0
+                ? withAlpha(colors.documents, 0.5)
+                : colors.documents,
+            }]}
+            activeOpacity={0.75}
+            onPress={() => setShowUploader(true)}
+          >
+            <AppText style={[styles.uploadText, { color: colors.text }]}>
+              Upload cours manuscrit
+            </AppText>
+            <Ionicons name="camera-outline" size={28} color={colors.text} />
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {pdfViewer && (
@@ -322,8 +330,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 16,
     marginTop: 4,
+    height: 75,
   },
-  uploadText: { fontSize: 15, fontWeight: "500" },
+  uploadText: { fontSize: 15, fontWeight: "600" },
   renameOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",

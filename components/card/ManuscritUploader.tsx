@@ -26,10 +26,19 @@ type Props = {
   card: Card;
   visible: boolean;
   onClose: () => void;
-  onUploadComplete: (file: UserFileEntry) => void;
+  uploadMode?: "userfiles" | "cloud";
+  onUploadComplete?: (file: UserFileEntry) => void;
+  onUploadDone?: () => Promise<void> | void;
 };
 
-export default function ManuscritUploader({ card, visible, onClose, onUploadComplete }: Props) {
+export default function ManuscritUploader({
+  card,
+  visible,
+  onClose,
+  uploadMode = "userfiles",
+  onUploadComplete,
+  onUploadDone,
+}: Props) {
   const { colors } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
   const BODY_PADDING = 20;
@@ -55,16 +64,41 @@ export default function ManuscritUploader({ card, visible, onClose, onUploadComp
     onClose();
   };
 
+  const sanitizeFilename = (name: string): string =>
+    name
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/\s+/g, "_")
+      .replace(/[^a-zA-Z0-9._-]/g, "")
+      .replace(/^_+|_+$/g, "")
+    || `cours_${Date.now()}`;
+
   const validateName = () => {
-    if (!displayName.trim()) return;
+    const trimmed = displayName.trim();
+    if (!trimmed) return;
+    if (trimmed.toLowerCase().includes("scan___")) {
+      setError("Le nom ne peut pas contenir \"scan___\".");
+      return;
+    }
+    setError("");
     setStep("scanning");
   };
 
+  const MAX_PAGES = 10;
+
   const startScan = async () => {
+    if (scannedUris.length >= MAX_PAGES) {
+      setError(`Maximum ${MAX_PAGES} pages autorisées.`);
+      return;
+    }
     try {
       const { scannedImages } = await DocumentScanner.scanDocument();
       if (!scannedImages?.length) return;
-      setScannedUris((prev) => [...prev, ...scannedImages]);
+      const available = MAX_PAGES - scannedUris.length;
+      const limited = scannedImages.slice(0, available);
+      setScannedUris((prev) => [...prev, ...limited]);
+      if (scannedImages.length > available) {
+        setError(`Limite de ${MAX_PAGES} pages : seules les ${available} premières ont été conservées.`);
+      }
     } catch {
       // annulé ou erreur
     }
@@ -109,12 +143,18 @@ export default function ManuscritUploader({ card, visible, onClose, onUploadComp
         binary += String.fromCharCode(...pdfBytes.subarray(i, i + CHUNK));
       }
       const pdfBase64 = btoa(binary);
-      const filename = `cours_${Date.now()}.pdf`;
+      const filename = uploadMode === "cloud"
+        ? `${sanitizeFilename(displayName.trim())}.pdf`
+        : `cours_${Date.now()}.pdf`;
       const tempPath = `${RNBlobUtil.fs.dirs.CacheDir}/${filename}`;
       await RNBlobUtil.fs.writeFile(tempPath, pdfBase64, "base64");
 
       setProgress("Préparation de l'envoi...");
-      const signedRes = await apiFetch("/upload/userfiles/signed-url", {
+      const signedEndpoint = uploadMode === "cloud"
+        ? "/upload/cloud/signed-url"
+        : "/upload/userfiles/signed-url";
+
+      const signedRes = await apiFetch(signedEndpoint, {
         method: "POST",
         body: JSON.stringify({
           cardId: card._id,
@@ -127,7 +167,7 @@ export default function ManuscritUploader({ card, visible, onClose, onUploadComp
         const err = await signedRes.json();
         throw new Error(err.error || "Erreur serveur");
       }
-      const { signedUrl, publicUrl } = await signedRes.json();
+      const { signedUrl, publicUrl, filename: gcsFilename } = await signedRes.json();
 
       setProgress("Envoi du fichier...");
       const uploadRes = await RNBlobUtil.fetch(
@@ -139,23 +179,26 @@ export default function ManuscritUploader({ card, visible, onClose, onUploadComp
       if (uploadRes.respInfo.status >= 400) throw new Error("Échec de l'envoi");
       await RNBlobUtil.fs.unlink(tempPath).catch(() => {});
 
-      setProgress("Enregistrement...");
-      const confirmRes = await apiFetch("/upload/userfiles/confirm", {
-        method: "POST",
-        body: JSON.stringify({
-          cardId: card._id,
-          filename,
-          displayName: displayName.trim(),
-        }),
-      });
-      if (!confirmRes.ok) throw new Error("Erreur d'enregistrement");
-
-      onUploadComplete({
-        name: displayName.trim(),
-        filename,
-        date: new Date().toISOString(),
-        url: publicUrl,
-      });
+      if (uploadMode === "cloud") {
+        await onUploadDone?.();
+      } else {
+        setProgress("Enregistrement...");
+        const confirmRes = await apiFetch("/upload/userfiles/confirm", {
+          method: "POST",
+          body: JSON.stringify({
+            cardId: card._id,
+            filename: gcsFilename ?? filename,
+            displayName: displayName.trim(),
+          }),
+        });
+        if (!confirmRes.ok) throw new Error("Erreur d'enregistrement");
+        onUploadComplete?.({
+          name: displayName.trim(),
+          filename: gcsFilename ?? filename,
+          date: new Date().toISOString(),
+          url: publicUrl,
+        });
+      }
       reset();
       onClose();
     } catch (err: any) {
@@ -186,6 +229,9 @@ export default function ManuscritUploader({ card, visible, onClose, onUploadComp
               <AppText style={[styles.label, { color: colors.textSecondary }]}>
                 Nom d'affichage dans la liste
               </AppText>
+              {!!error && (
+                <AppText style={{ color: "#e74c3c", fontSize: 13 }}>{error}</AppText>
+              )}
               <TextInput
                 style={[styles.input, { backgroundColor: colors.bg, color: colors.text, borderColor: colors.documents }]}
                 value={displayName}

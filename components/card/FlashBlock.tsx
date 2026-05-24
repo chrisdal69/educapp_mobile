@@ -92,7 +92,8 @@ function buildFlashHtml(
   rectoImageUrl: string,
   versoImageUrl: string,
   bgColor: string,
-  textColor: string
+  textColor: string,
+  cardBg: string,
 ): string {
   const rectoText = renderInlineMath(f.question);
   const versoText = renderInlineMath(f.reponse);
@@ -107,40 +108,77 @@ function buildFlashHtml(
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{background:${bgColor}}
-body{
-  font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
-  line-height:1.75;
-  padding:20px 16px 32px;
-  color:${textColor};
-  -webkit-tap-highlight-color:transparent;
+html,body{background:${bgColor};-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;color:${textColor};padding:16px}
+.scene{perspective:1200px;width:100%}
+.card-inner{
+  position:relative;width:100%;
+  transform-style:preserve-3d;
+  transition:transform 0.5s cubic-bezier(0.4,0,0.2,1);
+  border-radius:18px;
 }
-.face{display:none}
-.face.active{display:block}
-.text{font-size:20px;line-height:1.6}
-.img-wrap{text-align:center;margin-top:18px}
-.img-wrap img{max-width:100%;max-height:280px;border-radius:10px;object-fit:contain}
+.card-inner.flipped{transform:rotateY(180deg)}
+.face{
+  width:100%;padding:28px 20px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  background:${cardBg};border-radius:18px;
+}
+.face-back{position:absolute;top:0;left:0;right:0;bottom:0;transform:rotateY(180deg)}
+.text-wrap{width:100%;display:flex;justify-content:center}
+.text{max-width:100%;text-align:left;font-size:22px;line-height:1.4}
+.img-wrap{text-align:center;margin-top:18px;width:100%}
+.img-wrap img{max-width:100%;max-height:370px;border-radius:10px;object-fit:contain}
 math{font-size:1em}
 </style></head>
 <body>
-<div id="face-recto" class="face active">
-  <div class="text">${rectoText}</div>${rectoImg}
-</div>
-<div id="face-verso" class="face">
-  <div class="text">${versoText}</div>${versoImg}
+<div class="scene">
+  <div id="card-inner" class="card-inner">
+    <div id="face-recto" class="face face-front">
+      <div class="text-wrap"><div id="text-recto" class="text">${rectoText}</div></div>
+      ${rectoImg}
+    </div>
+    <div id="face-verso" class="face face-back">
+      <div class="text-wrap"><div id="text-verso" class="text">${versoText}</div></div>
+      ${versoImg}
+    </div>
+  </div>
 </div>
 <script>
+function applyBinarySearch(el){
+  if(!el)return;
+  var cw=el.parentElement?el.parentElement.clientWidth:window.innerWidth;
+  el.style.width='max-content';
+  if(el.scrollWidth>=cw){
+    el.style.width=cw+'px';
+    var refH=el.offsetHeight;
+    var lo=20,hi=cw;
+    for(var s=0;s<16;s++){var mid=(lo+hi)/2;el.style.width=mid+'px';if(el.offsetHeight<=refH)hi=mid;else lo=mid;}
+    el.style.width=Math.ceil(hi)+'px';
+  }
+}
 function flip(side){
-  document.getElementById('face-recto').className='face'+(side==='recto'?' active':'');
-  document.getElementById('face-verso').className='face'+(side==='verso'?' active':'');
-  setTimeout(function(){
-    var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);
-    window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({t:'height',h:h}));
-  },30);
+  var card=document.getElementById('card-inner');
+  if(side==='verso')card.classList.add('flipped');
+  else card.classList.remove('flipped');
 }
 window.addEventListener('load',function(){
+  applyBinarySearch(document.getElementById('text-recto'));
+  var back=document.getElementById('face-verso');
+  back.style.visibility='hidden';back.style.position='relative';back.style.transform='none';
+  applyBinarySearch(document.getElementById('text-verso'));
+  var h2=back.offsetHeight;
+  back.style.position='';back.style.visibility='';back.style.transform='';
+  var h1=document.getElementById('face-recto').offsetHeight;
+  var maxH=Math.max(h1,h2);
+  var card=document.getElementById('card-inner');
+  card.style.height=maxH+'px';
+  document.getElementById('face-recto').style.height=maxH+'px';
   var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);
   window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({t:'load',h:h}));
+  document.getElementById('card-inner').addEventListener('click',function(){
+    window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({t:'flip'}));
+  });
 });
 </script>
 </body></html>`;
@@ -171,10 +209,8 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
   const sideRef = useRef<"recto" | "verso">("recto");
   const acquisRef = useRef<Set<string>>(new Set());
   const deckRef = useRef<CardFlash[]>([]);
-  const deckPhaseRef = useRef<1 | 2>(1);
-
+  const [wrapperHeight, setWrapperHeight] = useState(0);
   const [deck, setDeck] = useState<CardFlash[]>([]);
-  const [deckPhase, setDeckPhase] = useState<1 | 2>(1);
   const [current, setCurrent] = useState(0);
   const [side, setSide] = useState<"recto" | "verso">("recto");
   const [acquis, setAcquis] = useState<Set<string>>(new Set());
@@ -185,7 +221,6 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
   sideRef.current = side;
   acquisRef.current = acquis;
   deckRef.current = deck;
-  deckPhaseRef.current = deckPhase;
 
   // Load acquis from storage then build initial deck
   useEffect(() => {
@@ -211,9 +246,10 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
   }, [card._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Notify parent of progress
+  const flashActiveIdx = flash.findIndex((fi) => fi.id === deck[current]?.id);
   useEffect(() => {
-    if (deck.length > 0) onCurrentChange?.(current, deck.length);
-  }, [current, deck.length, onCurrentChange]);
+    if (flash.length > 0) onCurrentChange?.(flashActiveIdx, flash.length);
+  }, [flashActiveIdx, flash.length, onCurrentChange]);
 
   // Persist acquis changes
   useEffect(() => {
@@ -229,15 +265,16 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
     (idx: number) => {
       if (idx < 0) return;
       const d = deckRef.current;
-      const phase = deckPhaseRef.current;
       if (idx >= d.length) {
         const nonAcquis = flash.filter((fi) => !acquisRef.current.has(fi.id));
-        if (phase === 1 && nonAcquis.length > 0 && nonAcquis.length < flash.length) {
+        const acquisList = flash.filter((fi) => acquisRef.current.has(fi.id));
+        if (nonAcquis.length === 0) {
+          setDeck(shuffle([...flash]));
+        } else if (acquisList.length === 0) {
           setDeck(shuffle(nonAcquis));
-          setDeckPhase(2);
         } else {
-          setDeck(shuffle(flash));
-          setDeckPhase(1);
+          const randomAcquired = acquisList[Math.floor(Math.random() * acquisList.length)];
+          setDeck(shuffle([...nonAcquis, randomAcquired]));
         }
         setCurrent(0);
         setSide("recto");
@@ -255,10 +292,15 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
     const f = deckRef.current[currentRef.current];
     if (!f) return;
     const next = new Set(acquisRef.current);
-    next.add(f.id);
-    acquisRef.current = next;
-    setAcquis(next);
-    goTo(currentRef.current + 1);
+    if (next.has(f.id)) {
+      next.delete(f.id);
+      acquisRef.current = next;
+      setAcquis(next);
+    } else {
+      next.add(f.id);
+      acquisRef.current = next;
+      setAcquis(next);
+    }
   }, [goTo]);
 
   const handleReset = useCallback(() => {
@@ -266,7 +308,6 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
     setAcquis(new Set());
     if (card._id) storageDelete(acquisStorageKey(card._id));
     setDeck(shuffle(flash));
-    setDeckPhase(1);
     setCurrent(0);
     setSide("recto");
     setCardHeight(300);
@@ -291,10 +332,10 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
   // ── Progress bars ─────────────────────────────────────────────────────────
 
   const BAR_GAP = 6;
-  const MAX_VISIBLE = 10;
+  const MAX_VISIBLE = 8;
   const RESET_WIDTH = 48;
   const availableWidth = screenWidth - 32 - RESET_WIDTH;
-  const n = Math.max(1, Math.min(deck.length, MAX_VISIBLE));
+  const n = Math.max(1, Math.min(flash.length, MAX_VISIBLE));
   const barWidth = Math.max(20, (availableWidth - BAR_GAP * (n - 1)) / n);
 
   const getBarBg = useCallback(
@@ -343,11 +384,12 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
             rectoImageUrl,
             versoImageUrl,
             colors.bgflash as string,
-            colors.text as string
+            colors.text as string,
+            colors.flash as string,
           )
         : "",
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [f?.id, rectoImageUrl, versoImageUrl, colors.bgflash, colors.text]
+    [f?.id, rectoImageUrl, versoImageUrl, colors.bgflash, colors.text, colors.flash]
   );
 
   const nonAcquisCount = useMemo(
@@ -390,25 +432,40 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
           contentContainerStyle={[styles.barsContent, { gap: BAR_GAP }]}
           style={styles.barsScroll}
         >
-          {deck.map((fi, idx) => (
-            <TouchableOpacity
-              key={fi.id}
-              onPress={() => {
-                setCardHeight(300);
-                setSide("recto");
-                setCurrent(idx);
-              }}
-              style={[
-                styles.bar,
-                {
-                  width: barWidth,
-                  backgroundColor: getBarBg(fi),
-                  borderWidth: idx === current ? 1.5 : 0,
-                  borderColor: colors.text as string,
-                },
-              ]}
-            />
-          ))}
+          {flash.map((fi, idx) => {
+            const deckIdx = deck.findIndex((d) => d.id === fi.id);
+            return (
+              <TouchableOpacity
+                key={fi.id}
+                onPress={() => {
+                  if (deckIdx >= 0) {
+                    setCardHeight(300);
+                    setSide("recto");
+                    setCurrent(deckIdx);
+                  } else {
+                    const newDeck = [...deckRef.current];
+                    const insertAt = currentRef.current + 1;
+                    newDeck.splice(insertAt, 0, fi);
+                    deckRef.current = newDeck;
+                    setDeck(newDeck);
+                    setCardHeight(300);
+                    setSide("recto");
+                    setCurrent(insertAt);
+                  }
+                }}
+                hitSlop={{ top: 16, bottom: 16, left: 4, right: 4 }}
+                style={[
+                  styles.bar,
+                  {
+                    width: barWidth,
+                    backgroundColor: getBarBg(fi),
+                    borderWidth: idx === flashActiveIdx ? 1.5 : 0,
+                    borderColor: colors.text as string,
+                  },
+                ]}
+              />
+            );
+          })}
         </ScrollView>
         <TouchableOpacity onPress={handleReset} style={styles.resetBtn}>
           <Ionicons name="refresh-outline" size={22} color={colors.textSecondary as string} />
@@ -458,39 +515,60 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
 
       {/* Card content */}
       <GestureDetector gesture={swipeGesture}>
-        <ScrollView
-          style={[styles.cardScroll, { backgroundColor: bgFlash }]}
-          contentContainerStyle={{ minHeight: cardHeight }}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={{ height: cardHeight, backgroundColor: bgFlash }}>
-            <WebView
-              ref={webviewRef}
-              key={f?.id ?? "empty"}
-              source={{ html: cardHtml }}
-              scrollEnabled={false}
-              showsVerticalScrollIndicator={false}
-              style={{ flex: 1, backgroundColor: "transparent" }}
-              onMessage={(event) => {
-                try {
-                  const data = JSON.parse(event.nativeEvent.data);
-                  if (data.t === "load") {
-                    if (data.h > 0) setCardHeight(data.h + 24);
-                    injectCurrentSide();
-                  } else if (data.t === "height") {
-                    if (data.h > 0) setCardHeight(data.h + 24);
-                  }
-                } catch {}
+        <View style={styles.cardWrapper} onLayout={(e) => setWrapperHeight(e.nativeEvent.layout.height)}>
+          <ScrollView
+            style={[styles.cardScroll, { backgroundColor: bgFlash }]}
+            contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={{ height: cardHeight, backgroundColor: bgFlash }}>
+              <WebView
+                ref={webviewRef}
+                key={f?.id ?? "empty"}
+                source={{ html: cardHtml }}
+                scrollEnabled={false}
+                showsVerticalScrollIndicator={false}
+                style={{ flex: 1, backgroundColor: "transparent" }}
+                onMessage={(event) => {
+                  try {
+                    const data = JSON.parse(event.nativeEvent.data);
+                    if (data.t === "load") {
+                      if (data.h > 0) setCardHeight(data.h + 24);
+                      injectCurrentSide();
+                    } else if (data.t === "flip") {
+                      flipTo(sideRef.current === "recto" ? "verso" : "recto");
+                    }
+                  } catch {}
+                }}
+              />
+            </View>
+          </ScrollView>
+
+          {/* NavZone : juste sous la carte, aussi haute que possible, tap = carte suivante */}
+          {wrapperHeight > 0 && Math.ceil((wrapperHeight + cardHeight) / 2) < wrapperHeight && (
+            <TouchableOpacity
+              style={{
+                position: "absolute",
+                top: Math.ceil((wrapperHeight + cardHeight) / 2),
+                left: 0,
+                right: 0,
+                bottom: 0,
               }}
+              onPress={() => goTo(currentRef.current + 1)}
+              activeOpacity={1}
             />
-          </View>
-        </ScrollView>
+          )}
+        </View>
       </GestureDetector>
 
       {/* Footer: Acquis + Next */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.acquisBtn, { backgroundColor: colors.boutonyes as string }]}
+          style={[styles.acquisBtn, {
+            backgroundColor: f && acquis.has(f.id)
+              ? (colors.boutonyes as string)
+              : `${colors.flash as string}80`,
+          }]}
           onPress={markAcquis}
         >
           <Ionicons name="checkmark" size={20} color={colors.text as string} />
@@ -519,11 +597,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 10,
+    paddingBottom: 4,
   },
   barsScroll: { flex: 1 },
   barsContent: { flexDirection: "row", alignItems: "center" },
-  bar: { height: 8, borderRadius: 4 },
+  bar: { height: 12, borderRadius: 6 },
   resetBtn: { padding: 8, marginLeft: 8 },
   toReviewText: {
     fontSize: 12,
@@ -533,8 +612,10 @@ const styles = StyleSheet.create({
   faceBtns: {
     flexDirection: "row",
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 2,
+    marginTop: 40,
     gap: 10,
+    justifyContent: "center",
   },
   faceBtn: {
     paddingVertical: 7,
@@ -545,6 +626,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
+  cardWrapper: { flex: 1, position: "relative" },
   cardScroll: { flex: 1 },
   footer: {
     flexDirection: "row",

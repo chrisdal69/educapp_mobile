@@ -1,4 +1,5 @@
-import { View, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import { View, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import AppText from "@/components/AppText";
 import { useTheme } from "@/contexts/ThemeContext";
 import type { ClasseRepertoire } from "@/types/cards";
@@ -7,9 +8,11 @@ type Props = {
   repertoires: ClasseRepertoire[];
   selected: string | null;
   onSelect: (slug: string) => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 };
 
-export default function Repertoires({ repertoires, selected, onSelect }: Props) {
+export default function Repertoires({ repertoires, selected, onSelect, onRefresh, refreshing }: Props) {
   const { colors } = useTheme();
 
   return (
@@ -40,6 +43,14 @@ export default function Repertoires({ repertoires, selected, onSelect }: Props) 
           );
         })}
       </ScrollView>
+      {onRefresh && (
+        <TouchableOpacity onPress={onRefresh} disabled={refreshing} style={styles.refreshBtn}>
+          {refreshing
+            ? <ActivityIndicator size="small" color={colors.muted as string} />
+            : <Ionicons name="refresh-outline" size={20} color={colors.muted as string} />
+          }
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -48,7 +59,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
     justifyContent: "flex-start",
+  },
+  refreshBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   scroll: {
     alignItems: "center",

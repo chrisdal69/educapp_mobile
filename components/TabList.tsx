@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   View,
   TouchableOpacity,
@@ -21,6 +21,7 @@ import QuizzBlock from "@/components/card/QuizzBlock";
 import FlashBlock from "@/components/card/FlashBlock";
 import VideoBlock from "@/components/card/VideoBlock";
 import CloudBlock from "@/components/card/CloudBlock";
+import RevisionBlock from "@/components/card/RevisionBlocks";
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
 type ZoneKey =
@@ -29,7 +30,8 @@ type ZoneKey =
   | "quizz"
   | "flash"
   | "video"
-  | "cloud";
+  | "cloud"
+  | "revision";
 
 type Zone = {
   key: ZoneKey;
@@ -62,9 +64,19 @@ export default function TabList({ selectedCard }: Props) {
   const [containerHeight, setContainerHeight] = useState(0);
   const { width: screenWidth } = useWindowDimensions();
 
+  // Dynamic header progress for quizz and flash/revision
+  const [quizzProgress, setQuizzProgress] = useState({ current: 0, total: 0 });
+  const [cardProgress, setCardProgress] = useState({ current: 0, total: 0 });
+
+  const handleCloseModal = useCallback(() => {
+    setActiveZone(null);
+    setQuizzProgress({ current: 0, total: 0 });
+    setCardProgress({ current: 0, total: 0 });
+  }, []);
+
   const PADDING = 10;
   const GAP = 15;
-  const rowHeight = containerHeight > 0 ? containerHeight / 3 - GAP -3: 120;
+  const rowHeight = containerHeight > 0 ? containerHeight / 3 - GAP - 3 : 120;
   const tileHalfWidth = (screenWidth - PADDING * 2 - GAP) / 2;
 
   if (!selectedCard) {
@@ -133,6 +145,13 @@ export default function TabList({ selectedCard }: Props) {
           },
         ]
       : []),
+    {
+      key: "revision" as ZoneKey,
+      label: "Mes cartes",
+      icon: "pencil-outline" as IoniconName,
+      colorKey: "flash" as keyof ThemeColors,
+      subtitle: "Mes flashcards",
+    },
   ];
 
   const [descZone, ...rest] = zones;
@@ -146,7 +165,18 @@ export default function TabList({ selectedCard }: Props) {
   }
 
   const activeZoneData = zones.find((z) => z.key === activeZone);
-  const modalSubtitle = `${user?.publicname ?? ""} - ${selectedCard.titre}`;
+
+  // Dynamic modal header
+  const isQuizz = activeZone === "quizz";
+  const isCard = activeZone === "flash" || activeZone === "revision";
+  const modalTitle = isQuizz && quizzProgress.total > 0
+    ? `Question ${quizzProgress.current + 1} / ${quizzProgress.total}`
+    : isCard && cardProgress.total > 0
+    ? `Carte ${cardProgress.current + 1} / ${cardProgress.total}`
+    : activeZoneData?.label ?? "";
+  const modalSubtitle = isQuizz || isCard
+    ? `${selectedCard.repertoire} · ${selectedCard.titre}`
+    : `${user?.publicname ?? ""} - ${selectedCard.titre}`;
 
   const zoneBgColorKey: Record<ZoneKey, keyof ThemeColors> = {
     description: "bgdescription",
@@ -155,8 +185,9 @@ export default function TabList({ selectedCard }: Props) {
     flash: "bgflash",
     video: "bgvideo",
     cloud: "bgcloud",
+    revision: "bgflash",
   };
-  const modalBg = activeZone ? colors[zoneBgColorKey[activeZone]] as string : colors.bg;
+  const modalBg = activeZone ? (colors[zoneBgColorKey[activeZone]] as string) : colors.bg;
 
   const renderTile = (zone: Zone, fullWidth = false) => (
     <TouchableOpacity
@@ -182,9 +213,7 @@ export default function TabList({ selectedCard }: Props) {
                 {zone.label}
               </AppText>
               {!!zone.subtitle && (
-                <AppText
-                  style={[styles.tileSubtitle, { color: colors.textSecondary }]}
-                >
+                <AppText style={[styles.tileSubtitle, { color: colors.textSecondary }]}>
                   {zone.subtitle}
                 </AppText>
               )}
@@ -210,9 +239,7 @@ export default function TabList({ selectedCard }: Props) {
             {zone.label}
           </AppText>
           {!!zone.subtitle && (
-            <AppText
-              style={[styles.tileSubtitle, { color: colors.textSecondary }]}
-            >
+            <AppText style={[styles.tileSubtitle, { color: colors.textSecondary }]}>
               {zone.subtitle}
             </AppText>
           )}
@@ -242,7 +269,7 @@ export default function TabList({ selectedCard }: Props) {
           </View>
         ))}
 
-        {/* L4 — Cloud pleine largeur (si 6 zones), sous le viewport */}
+        {/* L4 — 5ème zone pleine largeur, sous le viewport */}
         {l4Zone && (
           <View style={[styles.row, { height: rowHeight }]}>
             {renderTile(l4Zone, true)}
@@ -254,7 +281,7 @@ export default function TabList({ selectedCard }: Props) {
         visible={!!activeZone}
         animationType="slide"
         transparent
-        onRequestClose={() => setActiveZone(null)}
+        onRequestClose={handleCloseModal}
       >
         <View style={styles.overlay}>
           <View style={[styles.sheet, { backgroundColor: modalBg }]}>
@@ -269,52 +296,56 @@ export default function TabList({ selectedCard }: Props) {
               ]}
             >
               <View style={styles.modalHeaderText}>
-                <AppText style={[styles.modalTitle , { color: colors.text }]}>{activeZoneData?.label}</AppText>
-                <AppText style={[styles.modalSubtitle, { color: colors.textSecondary }]}>{modalSubtitle}</AppText>
+                <AppText style={[styles.modalTitle, { color: colors.text }]}>
+                  {modalTitle}
+                </AppText>
+                <AppText style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+                  {modalSubtitle}
+                </AppText>
               </View>
-              <TouchableOpacity
-                onPress={() => setActiveZone(null)}
-                style={styles.closeBtn}
-              >
+              <TouchableOpacity onPress={handleCloseModal} style={styles.closeBtn}>
                 <Ionicons name="close" size={30} color={colors.text} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.modalContent}>
               {activeZone === "description" && (
-                <ContentBlock
-                  card={selectedCard}
-                  onClose={() => setActiveZone(null)}
-                />
+                <ContentBlock card={selectedCard} onClose={handleCloseModal} />
               )}
               {activeZone === "documents" && (
-                <FilesBlock
-                  card={selectedCard}
-                  onClose={() => setActiveZone(null)}
-                />
+                <FilesBlock card={selectedCard} onClose={handleCloseModal} />
               )}
               {activeZone === "quizz" && (
                 <QuizzBlock
                   card={selectedCard}
-                  onClose={() => setActiveZone(null)}
+                  onClose={handleCloseModal}
+                  onCurrentChange={(cur, tot) =>
+                    setQuizzProgress({ current: cur, total: tot })
+                  }
                 />
               )}
               {activeZone === "flash" && (
                 <FlashBlock
                   card={selectedCard}
-                  onClose={() => setActiveZone(null)}
+                  onClose={handleCloseModal}
+                  onCurrentChange={(cur, tot) =>
+                    setCardProgress({ current: cur, total: tot })
+                  }
                 />
               )}
               {activeZone === "video" && (
-                <VideoBlock
-                  card={selectedCard}
-                  onClose={() => setActiveZone(null)}
-                />
+                <VideoBlock card={selectedCard} onClose={handleCloseModal} />
               )}
               {activeZone === "cloud" && (
-                <CloudBlock
+                <CloudBlock card={selectedCard} onClose={handleCloseModal} />
+              )}
+              {activeZone === "revision" && (
+                <RevisionBlock
                   card={selectedCard}
-                  onClose={() => setActiveZone(null)}
+                  onClose={handleCloseModal}
+                  onCurrentChange={(cur, tot) =>
+                    setCardProgress({ current: cur, total: tot })
+                  }
                 />
               )}
             </View>
@@ -329,7 +360,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 6,
     width: "100%",
-    paddingTop:8,
+    paddingTop: 8,
   },
   scrollContent: {
     padding: 10,
@@ -354,23 +385,18 @@ const styles = StyleSheet.create({
   descLeft: {
     flexDirection: "column",
   },
- descRight: {
-  flex:1,
-  height: "100%",
-  justifyContent: "center",
-
-},
+  descRight: {
+    flex: 1,
+    height: "100%",
+    justifyContent: "center",
+  },
   descCardTitle: {
     fontSize: 30,
     fontWeight: "200",
     fontStyle: "italic",
     textAlign: "right",
-    
   },
   tileFull: {
-    flex: 1,
-  },
-  tileHalf: {
     flex: 1,
   },
   tileIcon: {

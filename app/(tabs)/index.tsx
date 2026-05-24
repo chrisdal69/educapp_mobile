@@ -1,5 +1,5 @@
 import { View, StyleSheet } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiFetch } from '@/utils/apiClient';
 import Repertoires from '@/components/Repertoires';
@@ -15,18 +15,21 @@ export default function Index() {
   const [selectedRepertoire, setSelectedRepertoire] = useState<string | null>(null);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
 
-  useEffect(() => {
-    if (!user?.classId) return;
+  const fetchCards = useCallback((classId: string) => {
     setStatus('loading');
-    apiFetch(`/cards?classId=${encodeURIComponent(user.classId)}`)
+    apiFetch(`/cards?classId=${encodeURIComponent(classId)}`)
       .then((r) => r.json())
       .then((data) => {
-        const fetched: Card[] = data.result ?? [];
-        setCards(fetched);
+        setCards(data.result ?? []);
         setRepertoires(data.repertoires ?? []);
         setStatus('idle');
       })
       .catch(() => setStatus('error'));
+  }, []);
+
+  useEffect(() => {
+    if (!user?.classId) return;
+    fetchCards(user.classId);
   }, [user?.classId]);
 
   return (
@@ -35,6 +38,8 @@ export default function Index() {
         repertoires={repertoires}
         selected={selectedRepertoire}
         onSelect={setSelectedRepertoire}
+        onRefresh={() => user?.classId && fetchCards(user.classId)}
+        refreshing={status === 'loading'}
       />
       <Cards
         cards={cards}

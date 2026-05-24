@@ -35,6 +35,7 @@ export type Card = {
   flash: CardFlash[];
   video: CardHref[];
   nbUserFiles?: number;
+  nbUserFlashes?: number;
   evalQuizz?: string;
   resultatQuizz?: boolean;
   visible?: boolean;

@@ -47,8 +47,8 @@ const dark: ThemeColors = {
   bgcloud: "hsl(75.32, 55.29%, 5%)",
   bgvideo: "hsl(167.59, 12.78%, 5%)",
 
-  boutonyes: "#152e1d",
-  boutonno: "#746f18",  
+  boutonyes: "#37954E",
+  boutonno: "#953739",  
   
 };
 

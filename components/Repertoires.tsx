@@ -21,6 +21,7 @@ export default function Repertoires({ repertoires, selected, onSelect, onRefresh
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scroll}
+        style={styles.scrollView}
       >
         {repertoires.map((r) => {
           const isSelected = r.repertoire === selected;
@@ -63,9 +64,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-start",
   },
+  scrollView: {
+    flex: 1,
+  },
   refreshBtn: {
     paddingHorizontal: 12,
     paddingVertical: 6,
+    flexShrink: 0,
   },
   scroll: {
     alignItems: "center",

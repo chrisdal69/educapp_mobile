@@ -20,8 +20,10 @@ export default function Index() {
     apiFetch(`/cards?classId=${encodeURIComponent(classId)}`)
       .then((r) => r.json())
       .then((data) => {
-        setCards(data.result ?? []);
+        const fetched: Card[] = data.result ?? [];
+        setCards(fetched);
         setRepertoires(data.repertoires ?? []);
+        setSelectedCard(prev => prev ? (fetched.find(c => c._id === prev._id) ?? prev) : null);
         setStatus('idle');
       })
       .catch(() => setStatus('error'));

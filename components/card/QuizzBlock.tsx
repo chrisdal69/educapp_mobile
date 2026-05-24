@@ -12,6 +12,7 @@ import {
   StyleSheet,
   useWindowDimensions,
   ActivityIndicator,
+  Animated,
 } from "react-native";
 import WebView from "react-native-webview";
 import katex from "katex";
@@ -87,6 +88,8 @@ function buildQuestionHtml(
   optionBgOdd: string,
   colorYes: string,
   colorNo: string,
+  colorSelected: string,
+  colorSelectedText: string,
 ): string {
   const questionHtml = renderInlineMath(q.question);
   const correctIdx = Number.isInteger(q.correct) ? q.correct : -1;
@@ -163,6 +166,7 @@ body{
   gap:12px;
   height:64px;
   flex-shrink:0;
+  overflow:hidden;
   padding:1px 14px;
   border-radius:12px;
   border:1.5px solid transparent;
@@ -185,9 +189,9 @@ body{
   flex-shrink:0;
 }
 .opt-text{flex:1}
-.opt-selected{border-color:rgba(128,128,128,0.6)}
-.opt-correct{border-color:${colorYes};background:${colorYes}BB}
-.opt-wrong{border-color:${colorNo};background:${colorNo}BB}
+.opt-selected{background:${colorSelected};color:${colorSelectedText}}
+.opt-correct{}
+.opt-wrong{}
 math{font-size:1em}
 </style></head>
 <body>
@@ -203,7 +207,8 @@ var N=${optCount};
 function selectOpt(i){
   window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({t:'select',v:i}));
 }
-function updateState(answer,firstAnswer,submitted,showResults){
+function updateState(answer,firstAnswer,submitted,showResults,overrideCorrect){
+  var eff=(typeof overrideCorrect==='number')?overrideCorrect:CORRECT;
   for(var i=0;i<N;i++){
     var el=document.getElementById('opt'+i);
     if(!el)continue;
@@ -214,19 +219,29 @@ function updateState(answer,firstAnswer,submitted,showResults){
         cls+=(CORRECT>=0&&i===CORRECT)?' opt-correct':' opt-wrong';
       }
     }else if(submitted&&showResults){
-      if(i===CORRECT)cls+=' opt-correct';
+      if(i===eff)cls+=' opt-correct';
       else if(isSel)cls+=' opt-wrong';
     }else if(isSel){
       cls+=' opt-selected';
     }
     el.className=cls;
-    if(cls.indexOf('opt-correct')>=0)el.style.backgroundColor='${colorYes}';
-    else if(cls.indexOf('opt-wrong')>=0)el.style.backgroundColor='${colorNo}';
-    else el.style.backgroundColor=el.dataset.bg;
+    var badge=el.querySelector('.badge');
+    if(cls.indexOf('opt-correct')>=0){el.style.backgroundColor='${colorYes}';el.style.color='';if(badge){badge.style.background='';badge.style.color='';}}
+    else if(cls.indexOf('opt-wrong')>=0){el.style.backgroundColor='${colorNo}';el.style.color='';if(badge){badge.style.background='';badge.style.color='';}}
+    else if(cls.indexOf('opt-selected')>=0){el.style.backgroundColor='${colorSelected}';el.style.color='${colorSelectedText}';if(badge){badge.style.background='${colorYes}';badge.style.color='${textColor}';}}
+    else{el.style.backgroundColor=el.dataset.bg;el.style.color='';if(badge){badge.style.background='';badge.style.color='';}}
   }
 }
 window.addEventListener('load',function(){
   for(var i=0;i<N;i++){var el=document.getElementById('opt'+i);if(el)el.style.backgroundColor=el.dataset.bg;}
+  for(var i=0;i<N;i++){
+    var el=document.getElementById('opt'+i);
+    if(!el)continue;
+    var txt=el.querySelector('.opt-text');
+    if(!txt)continue;
+    var fs=20;
+    while(el.scrollHeight>el.clientHeight&&fs>12){fs--;txt.style.fontSize=fs+'px';}
+  }
   var q=document.querySelector('.question');
   if(q){
     var cw=q.parentElement?q.parentElement.clientWidth:window.innerWidth;
@@ -250,6 +265,8 @@ window.addEventListener('load',function(){
 
 const trainingStorageKey = (cardId: string) => `quizz_train_${cardId}`;
 
+const FOOTER_H = 72;
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 type Props = {
@@ -272,6 +289,7 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
   const answersRef = useRef<Record<string, number>>({});
   const firstAnswersRef = useRef<Record<string, number>>({});
   const submittedRef = useRef(false);
+  const correctsRef = useRef<(number | null)[]>([]);
 
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
@@ -344,6 +362,19 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
               totalQuestions: payload.totalQuestions,
             });
           }
+          if (Array.isArray(payload.corrects)) {
+            correctsRef.current = payload.corrects;
+          }
+          if (Array.isArray(payload.choix) && payload.choix.length === quizz.length) {
+            const restored: Record<string, number> = {};
+            quizz.forEach((q, i) => {
+              if (payload.choix[i] !== undefined && payload.choix[i] !== null) {
+                restored[q.id] = payload.choix[i];
+              }
+            });
+            answersRef.current = restored;
+            setAnswers(restored);
+          }
         }
       })
       .catch(() => {})
@@ -361,11 +392,11 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
     const ans = answersRef.current[q.id];
     const fa = firstAnswersRef.current[q.id];
     const sub = submittedRef.current;
-    const showResults = sub && !!card.resultatQuizz;
+    const oc = correctsRef.current[currentRef.current];
     webviewRef.current.injectJavaScript(
-      `updateState(${ans !== undefined ? ans : "null"},${fa !== undefined ? fa : "null"},${sub},${showResults});true;`,
+      `updateState(${ans !== undefined ? ans : "null"},${fa !== undefined ? fa : "null"},${sub},${sub},${oc !== undefined && oc !== null ? oc : "undefined"});true;`,
     );
-  }, [quizz, card.resultatQuizz]);
+  }, [quizz]);
 
   const handleOptionSelect = useCallback(
     (qid: string, optionIdx: number) => {
@@ -427,11 +458,15 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
           totalQuestions: payload.totalQuestions,
         });
       }
+      if (Array.isArray(payload.corrects)) {
+        correctsRef.current = payload.corrects;
+      }
       const q = quizz[currentRef.current];
       if (q && webviewRef.current) {
         const ans = answersRef.current[q.id];
+        const oc = correctsRef.current[currentRef.current];
         webviewRef.current.injectJavaScript(
-          `updateState(${ans !== undefined ? ans : "null"},null,true,${!!card.resultatQuizz});true;`,
+          `updateState(${ans !== undefined ? ans : "null"},null,true,true,${oc !== undefined && oc !== null ? oc : "undefined"});true;`,
         );
       }
     } catch {
@@ -439,7 +474,7 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
     } finally {
       setSubmitting(false);
     }
-  }, [card._id, user, quizz, card.resultatQuizz]);
+  }, [card._id, user, quizz]);
 
   // ── Swipe gesture ─────────────────────────────────────────────────────────
 
@@ -473,19 +508,23 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
           ? (colors.boutonyes as string)
           : (colors.boutonno as string);
       }
-      if (!submitted || !card.resultatQuizz) return colors.muted as string;
       const ans = answers[q.id];
       if (ans === undefined) return colors.muted as string;
-      return ans === q.correct
-        ? (colors.boutonyes as string)
-        : (colors.boutonno as string);
+      if (submitted) {
+        const idx = quizz.indexOf(q);
+        const effectiveCorrect = correctsRef.current[idx] ?? q.correct;
+        return ans === effectiveCorrect
+          ? (colors.boutonyes as string)
+          : (colors.boutonno as string);
+      }
+      return colors.boutonyes as string;
     },
     [
       trainingMode,
       firstAnswers,
       submitted,
-      card.resultatQuizz,
       answers,
+      quizz,
       colors,
     ],
   );
@@ -526,6 +565,8 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
             optionBgOdd,
             colors.boutonyes as string,
             colors.boutonno as string,
+            colors.selectedQuizz as string,
+            colors.bg as string,
           )
         : "",
     [
@@ -538,10 +579,23 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
       optionBgOdd,
       colors.boutonyes,
       colors.boutonno,
+      colors.selectedQuizz,
+      colors.bg,
     ],
   );
 
   const allAnswered = quizz.every((qi) => answers[qi.id] !== undefined);
+
+  const footerSlide = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!evalMode || submitted) return;
+    Animated.timing(footerSlide, {
+      toValue: allAnswered ? 1 : 0,
+      duration: 450,
+      useNativeDriver: true,
+    }).start();
+  }, [allAnswered, evalMode, submitted]);
 
   // ── Early returns ─────────────────────────────────────────────────────────
 
@@ -565,7 +619,7 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
     return (
       <View style={styles.centered}>
         <AppText style={{ color: colors.muted }}>
-          Quizz en attente de validation.
+          Quizz en attente.
         </AppText>
       </View>
     );
@@ -674,49 +728,60 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
 
       {/* Eval footer — submit / confirm */}
       {evalMode && !submitted && (
-        <View style={styles.footer}>
-          {!pendingConfirm ? (
-            <TouchableOpacity
-              style={[
-                styles.submitBtn,
-                {
-                  backgroundColor: colors.quizz as string,
-                  opacity: allAnswered ? 1 : 0.45,
-                },
-              ]}
-              onPress={() => allAnswered && setPendingConfirm(true)}
-            >
-              <AppText style={styles.submitBtnText}>
-                Envoyer mes réponses
-              </AppText>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.confirmRow}>
+        <View style={styles.footerClip}>
+          <Animated.View
+            style={[
+              styles.footer,
+              {
+                transform: [{
+                  translateY: footerSlide.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [FOOTER_H, 0],
+                  }),
+                }],
+              },
+            ]}
+          >
+            {!pendingConfirm ? (
               <TouchableOpacity
                 style={[
-                  styles.confirmBtn,
-                  { backgroundColor: colors.boutonno },
+                  styles.submitBtn,
+                  { backgroundColor: colors.quizz as string },
                 ]}
-                onPress={() => setPendingConfirm(false)}
+                onPress={() => setPendingConfirm(true)}
               >
-                <AppText style={{ color: colors.text }}>Annuler</AppText>
+                <AppText style={styles.submitBtnText}>
+                  Envoyer mes réponses
+                </AppText>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.confirmBtn,
-                  { backgroundColor: colors.boutonyes },
-                ]}
-                onPress={handleSubmit}
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <ActivityIndicator color={colors.text} size="small" />
-                ) : (
-                  <AppText style={{ color: colors.text }}>Confirmer</AppText>
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
+            ) : (
+              <View style={styles.confirmRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.confirmBtn,
+                    { backgroundColor: colors.boutonno },
+                  ]}
+                  onPress={() => setPendingConfirm(false)}
+                >
+                  <AppText style={{ color: colors.text }}>Annuler</AppText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.confirmBtn,
+                    { backgroundColor: colors.boutonyes },
+                  ]}
+                  onPress={handleSubmit}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color={colors.text} size="small" />
+                  ) : (
+                    <AppText style={{ color: colors.text }}>Confirmer</AppText>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </Animated.View>
         </View>
       )}
 
@@ -780,10 +845,16 @@ const styles = StyleSheet.create({
   bar: { height: 8, borderRadius: 4 },
   resetBtn: { padding: 8, marginLeft: 8 },
   questionScroll: { flex: 1 },
+  footerClip: {
+    overflow: "hidden",
+    height: FOOTER_H,
+  },
   footer: {
+    height: FOOTER_H,
     paddingHorizontal: 16,
     paddingVertical: 14,
     alignItems: "center",
+    justifyContent: "center",
     gap: 4,
   },
   submitBtn: {

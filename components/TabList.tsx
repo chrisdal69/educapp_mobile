@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   View,
   TouchableOpacity,
@@ -13,6 +13,7 @@ import type { ComponentProps } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiFetch } from "@/utils/apiClient";
 import type { Card, CardHref } from "@/types/cards";
 import type { ThemeColors } from "@/theme";
 import ContentBlock from "@/components/card/ContentBlock";
@@ -21,7 +22,7 @@ import QuizzBlock from "@/components/card/QuizzBlock";
 import FlashBlock from "@/components/card/FlashBlock";
 import VideoBlock from "@/components/card/VideoBlock";
 import CloudBlock from "@/components/card/CloudBlock";
-import RevisionBlock from "@/components/card/RevisionBlocks";
+import RevisionBlock from "@/components/card/RevisionBlock";
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
 type ZoneKey =
@@ -67,6 +68,18 @@ export default function TabList({ selectedCard }: Props) {
   // Dynamic header progress for quizz and flash/revision
   const [quizzProgress, setQuizzProgress] = useState({ current: 0, total: 0 });
   const [cardProgress, setCardProgress] = useState({ current: 0, total: 0 });
+
+  const [userFlashCount, setUserFlashCount] = useState(0);
+  useEffect(() => {
+    if (!selectedCard?._id || (selectedCard.nbUserFlashes ?? 0) === 0) {
+      setUserFlashCount(0);
+      return;
+    }
+    apiFetch(`/userflashes?cardId=${selectedCard._id}`)
+      .then((res) => (res.ok ? res.json() : { flash: [] }))
+      .then((data) => setUserFlashCount((data.flash ?? []).length))
+      .catch(() => setUserFlashCount(0));
+  }, [selectedCard?._id]);
 
   const handleCloseModal = useCallback(() => {
     setActiveZone(null);
@@ -156,7 +169,7 @@ export default function TabList({ selectedCard }: Props) {
             label: "Mes cartes",
             icon: "pencil-outline" as IoniconName,
             colorKey: "flash" as keyof ThemeColors,
-            subtitle: "Mes flashcards",
+            subtitle: `${userFlashCount} flashcard(s) uploadée(s)`,
           },
         ]
       : []),

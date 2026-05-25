@@ -56,7 +56,8 @@ function buildUserFlashHtml(
   rectoUrl: string,
   versoUrl: string,
   bgColor: string,
-  textColor: string
+  textColor: string,
+  cardBg: string,
 ): string {
   const rectoImg = rectoUrl
     ? `<img src="${rectoUrl}" class="card-img" />`
@@ -69,34 +70,56 @@ function buildUserFlashHtml(
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{background:${bgColor};height:100%}
-body{
-  font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
-  display:flex;align-items:center;justify-content:center;
-  padding:16px;
-  color:${textColor};
-  -webkit-tap-highlight-color:transparent;
+html,body{background:${bgColor};-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;color:${textColor};padding:5px}
+.scene{perspective:1200px;width:100%}
+.card-inner{
+  position:relative;width:100%;
+  transform-style:preserve-3d;
+  transition:transform 0.5s cubic-bezier(0.4,0,0.2,1);
+  border-radius:18px;
 }
-.face{display:none;width:100%;text-align:center}
-.face.active{display:block}
-.card-img{max-width:100%;max-height:70vh;border-radius:12px;object-fit:contain}
-.placeholder{font-size:18px;color:${textColor};opacity:0.5;padding:40px}
+.card-inner.flipped{transform:rotateY(180deg)}
+.face{
+  width:100%;padding:0px 0px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  background:${cardBg};border-radius:18px;
+  min-height:200px;
+}
+.face-back{position:absolute;top:0;left:0;right:0;bottom:0;transform:rotateY(180deg)}
+.card-img{max-width:100%;max-height:65vh;border-radius:12px;object-fit:contain}
+.placeholder{font-size:18px;color:${textColor};opacity:0.5;padding:40px;text-align:center}
 </style></head>
 <body>
-<div id="face-recto" class="face active">${rectoImg}</div>
-<div id="face-verso" class="face">${versoImg}</div>
+<div class="scene">
+  <div id="card-inner" class="card-inner">
+    <div id="face-recto" class="face face-front">${rectoImg}</div>
+    <div id="face-verso" class="face face-back">${versoImg}</div>
+  </div>
+</div>
 <script>
 function flip(side){
-  document.getElementById('face-recto').className='face'+(side==='recto'?' active':'');
-  document.getElementById('face-verso').className='face'+(side==='verso'?' active':'');
-  setTimeout(function(){
-    var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);
-    window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({t:'height',h:h}));
-  },30);
+  var card=document.getElementById('card-inner');
+  if(side==='verso'){card.classList.add('flipped');}
+  else{card.classList.remove('flipped');}
 }
 window.addEventListener('load',function(){
+  var recto=document.getElementById('face-recto');
+  var verso=document.getElementById('face-verso');
+  var card=document.getElementById('card-inner');
+  verso.style.visibility='hidden';verso.style.position='relative';verso.style.transform='none';
+  var h2=verso.offsetHeight;
+  verso.style.position='';verso.style.visibility='';verso.style.transform='';
+  var h1=recto.offsetHeight;
+  var maxH=Math.max(h1,h2,200);
+  card.style.height=maxH+'px';
+  recto.style.height=maxH+'px';
   var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);
   window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({t:'load',h:h}));
+  card.addEventListener('click',function(){
+    window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({t:'flip'}));
+  });
 });
 </script>
 </body></html>`;
@@ -156,7 +179,6 @@ function ScanFlashModal({ visible, card, onClose, onDone }: ScanFlashModalProps)
     setStep("uploading");
     setProgress("Redimensionnement...");
     try {
-      // Resize images
       const resizedRecto = await ImageManipulator.manipulateAsync(
         rectoUri,
         [{ resize: { width: 600 } }],
@@ -170,7 +192,6 @@ function ScanFlashModal({ visible, card, onClose, onDone }: ScanFlashModalProps)
           )
         : null;
 
-      // Upload recto
       setProgress("Envoi du recto...");
       const rectoFilename = `recto_${Date.now()}.jpg`;
       const rectoSignedRes = await apiFetch("/userflashes/signed-url", {
@@ -188,7 +209,6 @@ function ScanFlashModal({ visible, card, onClose, onDone }: ScanFlashModalProps)
       );
       if (rectoUpload.respInfo.status >= 400) throw new Error("Échec upload recto");
 
-      // Upload verso
       let versoGcsFilename: string | undefined;
       if (resizedVerso) {
         setProgress("Envoi du verso...");
@@ -210,7 +230,6 @@ function ScanFlashModal({ visible, card, onClose, onDone }: ScanFlashModalProps)
         versoGcsFilename = vGcsFilename;
       }
 
-      // Confirm
       setProgress("Enregistrement...");
       const confirmRes = await apiFetch("/userflashes/confirm", {
         method: "POST",
@@ -235,7 +254,6 @@ function ScanFlashModal({ visible, card, onClose, onDone }: ScanFlashModalProps)
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
       <View style={scanStyles.overlay}>
         <View style={[scanStyles.sheet, { backgroundColor: colors.bgflash }]}>
-          {/* Header */}
           <View style={[scanStyles.header, { backgroundColor: colors.flash as string }]}>
             <AppText style={[scanStyles.headerTitle, { color: colors.text }]}>
               {step === "uploading" ? progress : "Nouvelle carte"}
@@ -247,7 +265,6 @@ function ScanFlashModal({ visible, card, onClose, onDone }: ScanFlashModalProps)
 
           {step === "preview" && (
             <View style={scanStyles.body}>
-              {/* Thumbnails */}
               <View style={scanStyles.thumbRow}>
                 <TouchableOpacity
                   style={[
@@ -291,7 +308,6 @@ function ScanFlashModal({ visible, card, onClose, onDone }: ScanFlashModalProps)
                 Appuyez sur une case pour scanner
               </AppText>
 
-              {/* Actions */}
               <View style={scanStyles.actions}>
                 {rectoUri && (
                   <TouchableOpacity
@@ -392,17 +408,16 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
   const sideRef = useRef<"recto" | "verso">("recto");
   const acquisRef = useRef<Set<string>>(new Set());
   const deckRef = useRef<UserFlash[]>([]);
-  const deckPhaseRef = useRef<1 | 2>(1);
   const allFlashRef = useRef<UserFlash[]>([]);
 
   const [allFlash, setAllFlash] = useState<UserFlash[]>([]);
   const [userPrefix, setUserPrefix] = useState<string>("");
   const [deck, setDeck] = useState<UserFlash[]>([]);
-  const [deckPhase, setDeckPhase] = useState<1 | 2>(1);
   const [current, setCurrent] = useState(0);
   const [side, setSide] = useState<"recto" | "verso">("recto");
   const [acquis, setAcquis] = useState<Set<string>>(new Set());
   const [cardHeight, setCardHeight] = useState(300);
+  const [wrapperHeight, setWrapperHeight] = useState(0);
   const [loading, setLoading] = useState(true);
   const [scanVisible, setScanVisible] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -411,7 +426,6 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
   sideRef.current = side;
   acquisRef.current = acquis;
   deckRef.current = deck;
-  deckPhaseRef.current = deckPhase;
   allFlashRef.current = allFlash;
 
   // Fetch userflashes and load acquis
@@ -440,7 +454,6 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
       setUserPrefix(prefix);
       setAcquis(acquisSet);
       setDeck(shuffle(flashes));
-      setDeckPhase(1);
       setCurrent(0);
       setSide("recto");
       setCardHeight(300);
@@ -453,9 +466,10 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
   }, [fetchFlashes]);
 
   // Notify parent of progress
+  const allFlashActiveIdx = allFlash.findIndex((fi) => fi.id === deck[current]?.id);
   useEffect(() => {
-    if (deck.length > 0) onCurrentChange?.(current, deck.length);
-  }, [current, deck.length, onCurrentChange]);
+    if (allFlash.length > 0) onCurrentChange?.(allFlashActiveIdx, allFlash.length);
+  }, [allFlashActiveIdx, allFlash.length, onCurrentChange]);
 
   // Persist acquis changes
   useEffect(() => {
@@ -470,15 +484,16 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
   const goTo = useCallback((idx: number) => {
     if (idx < 0) return;
     const d = deckRef.current;
-    const phase = deckPhaseRef.current;
     if (idx >= d.length) {
       const nonAcquis = allFlashRef.current.filter((fi) => !acquisRef.current.has(fi.id));
-      if (phase === 1 && nonAcquis.length > 0 && nonAcquis.length < allFlashRef.current.length) {
+      const acquisList = allFlashRef.current.filter((fi) => acquisRef.current.has(fi.id));
+      if (nonAcquis.length === 0) {
+        setDeck(shuffle([...allFlashRef.current]));
+      } else if (acquisList.length === 0) {
         setDeck(shuffle(nonAcquis));
-        setDeckPhase(2);
       } else {
-        setDeck(shuffle(allFlashRef.current));
-        setDeckPhase(1);
+        const randomAcquired = acquisList[Math.floor(Math.random() * acquisList.length)];
+        setDeck(shuffle([...nonAcquis, randomAcquired]));
       }
       setCurrent(0);
       setSide("recto");
@@ -494,18 +509,20 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
     const f = deckRef.current[currentRef.current];
     if (!f) return;
     const next = new Set(acquisRef.current);
-    next.add(f.id);
+    if (next.has(f.id)) {
+      next.delete(f.id);
+    } else {
+      next.add(f.id);
+    }
     acquisRef.current = next;
     setAcquis(next);
-    goTo(currentRef.current + 1);
-  }, [goTo]);
+  }, []);
 
   const handleReset = useCallback(() => {
     acquisRef.current = new Set();
     setAcquis(new Set());
     if (card._id) storageDelete(acquisStorageKey(card._id));
     setDeck(shuffle(allFlashRef.current));
-    setDeckPhase(1);
     setCurrent(0);
     setSide("recto");
     setCardHeight(300);
@@ -537,7 +554,6 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
                 { method: "DELETE" }
               );
               if (!res.ok) throw new Error();
-              // Remove from allFlash, rebuild deck
               const nextAll = allFlashRef.current.filter((fi) => fi.id !== f.id);
               const nextAcquis = new Set(acquisRef.current);
               nextAcquis.delete(f.id);
@@ -586,10 +602,10 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
   // ── Progress bars ─────────────────────────────────────────────────────────
 
   const BAR_GAP = 6;
-  const MAX_VISIBLE = 10;
+  const MAX_VISIBLE = 8;
   const RESET_WIDTH = 48;
   const availableWidth = screenWidth - 32 - RESET_WIDTH;
-  const n = Math.max(1, Math.min(deck.length, MAX_VISIBLE));
+  const n = Math.max(1, Math.min(allFlash.length, MAX_VISIBLE));
   const barWidth = Math.max(20, (availableWidth - BAR_GAP * (n - 1)) / n);
 
   const getBarBg = useCallback(
@@ -631,7 +647,8 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
             rectoUrl,
             versoUrl,
             colors.bgflash as string,
-            colors.text as string
+            colors.text as string,
+            "transparent",
           )
         : "",
     [f?.id, rectoUrl, versoUrl, colors.bgflash, colors.text] // eslint-disable-line react-hooks/exhaustive-deps
@@ -700,25 +717,40 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
           contentContainerStyle={[styles.barsContent, { gap: BAR_GAP }]}
           style={styles.barsScroll}
         >
-          {deck.map((fi, idx) => (
-            <TouchableOpacity
-              key={fi.id}
-              onPress={() => {
-                setCardHeight(300);
-                setSide("recto");
-                setCurrent(idx);
-              }}
-              style={[
-                styles.bar,
-                {
-                  width: barWidth,
-                  backgroundColor: getBarBg(fi),
-                  borderWidth: idx === current ? 1.5 : 0,
-                  borderColor: colors.text as string,
-                },
-              ]}
-            />
-          ))}
+          {allFlash.map((fi, idx) => {
+            const deckIdx = deck.findIndex((d) => d.id === fi.id);
+            return (
+              <TouchableOpacity
+                key={fi.id}
+                onPress={() => {
+                  if (deckIdx >= 0) {
+                    setCardHeight(300);
+                    setSide("recto");
+                    setCurrent(deckIdx);
+                  } else {
+                    const newDeck = [...deckRef.current];
+                    const insertAt = currentRef.current + 1;
+                    newDeck.splice(insertAt, 0, fi);
+                    deckRef.current = newDeck;
+                    setDeck(newDeck);
+                    setCardHeight(300);
+                    setSide("recto");
+                    setCurrent(insertAt);
+                  }
+                }}
+                hitSlop={{ top: 16, bottom: 16, left: 4, right: 4 }}
+                style={[
+                  styles.bar,
+                  {
+                    width: barWidth,
+                    backgroundColor: getBarBg(fi),
+                    borderWidth: idx === allFlashActiveIdx ? 1.5 : 0,
+                    borderColor: colors.text as string,
+                  },
+                ]}
+              />
+            );
+          })}
         </ScrollView>
         <TouchableOpacity onPress={handleReset} style={styles.resetBtn}>
           <Ionicons name="refresh-outline" size={22} color={colors.textSecondary as string} />
@@ -768,39 +800,73 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
 
       {/* Card content */}
       <GestureDetector gesture={swipeGesture}>
-        <ScrollView
-          style={[styles.cardScroll, { backgroundColor: bgFlash }]}
-          contentContainerStyle={{ minHeight: cardHeight }}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={{ height: cardHeight, backgroundColor: bgFlash }}>
-            <WebView
-              ref={webviewRef}
-              key={f?.id ?? "empty"}
-              source={{ html: cardHtml }}
-              scrollEnabled={false}
-              showsVerticalScrollIndicator={false}
-              style={{ flex: 1, backgroundColor: "transparent" }}
-              onMessage={(event) => {
-                try {
-                  const data = JSON.parse(event.nativeEvent.data);
-                  if (data.t === "load") {
-                    if (data.h > 0) setCardHeight(data.h + 24);
-                    injectCurrentSide();
-                  } else if (data.t === "height") {
-                    if (data.h > 0) setCardHeight(data.h + 24);
-                  }
-                } catch {}
+        <View style={styles.cardWrapper} onLayout={(e) => setWrapperHeight(e.nativeEvent.layout.height)}>
+          <ScrollView
+            style={[styles.cardScroll, { backgroundColor: bgFlash }]}
+            contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={{ height: cardHeight, backgroundColor: bgFlash }}>
+              <WebView
+                ref={webviewRef}
+                key={f?.id ?? "empty"}
+                source={{ html: cardHtml }}
+                scrollEnabled={false}
+                showsVerticalScrollIndicator={false}
+                style={{ flex: 1, backgroundColor: "transparent" }}
+                onMessage={(event) => {
+                  try {
+                    const data = JSON.parse(event.nativeEvent.data);
+                    if (data.t === "load") {
+                      if (data.h > 0) setCardHeight(data.h + 24);
+                      injectCurrentSide();
+                    } else if (data.t === "flip") {
+                      flipTo(sideRef.current === "recto" ? "verso" : "recto");
+                    }
+                  } catch {}
+                }}
+              />
+            </View>
+          </ScrollView>
+
+          {/* NavZone : juste sous la carte, tap = carte suivante */}
+          {wrapperHeight > 0 && Math.ceil((wrapperHeight + cardHeight) / 2) < wrapperHeight && (
+            <TouchableOpacity
+              style={{
+                position: "absolute",
+                top: Math.ceil((wrapperHeight + cardHeight) / 2),
+                left: 0,
+                right: 0,
+                bottom: 0,
               }}
+              onPress={() => goTo(currentRef.current + 1)}
+              activeOpacity={1}
             />
-          </View>
-        </ScrollView>
+          )}
+        </View>
       </GestureDetector>
+
+      {/* Suivant */}
+      <View style={styles.suivantRow}>
+        <TouchableOpacity
+          style={[styles.nextBtn, { backgroundColor: `${colors.flash as string}80` }]}
+          onPress={() => goTo(currentRef.current + 1)}
+        >
+          <AppText style={[styles.footerBtnText, { color: colors.text as string }]}>
+            Suivant
+          </AppText>
+          <Ionicons name="arrow-forward" size={20} color={colors.text as string} />
+        </TouchableOpacity>
+      </View>
 
       {/* Footer: Acquis + Add + Delete */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.acquisBtn, { backgroundColor: colors.boutonyes as string }]}
+          style={[styles.acquisBtn, {
+            backgroundColor: f && acquis.has(f.id)
+              ? (colors.boutonyes as string)
+              : `${colors.flash as string}80`,
+          }]}
           onPress={markAcquis}
         >
           <Ionicons name="checkmark" size={20} color={colors.text as string} />
@@ -848,11 +914,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 10,
+    paddingBottom: 4,
   },
   barsScroll: { flex: 1 },
   barsContent: { flexDirection: "row", alignItems: "center" },
-  bar: { height: 8, borderRadius: 4 },
+  bar: { height: 12, borderRadius: 6 },
   resetBtn: { padding: 8, marginLeft: 8 },
   toReviewText: {
     fontSize: 12,
@@ -862,8 +929,10 @@ const styles = StyleSheet.create({
   faceBtns: {
     flexDirection: "row",
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 2,
+    marginTop: 40,
     gap: 10,
+    justifyContent: "center",
   },
   faceBtn: {
     paddingVertical: 7,
@@ -874,6 +943,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
+  cardWrapper: { flex: 1, position: "relative" },
   cardScroll: { flex: 1 },
   footer: {
     flexDirection: "row",
@@ -897,6 +967,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+  },
+  suivantRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 4,
+  },
+  nextBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
   },
   footerBtnText: {
     fontSize: 15,

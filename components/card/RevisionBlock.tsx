@@ -50,7 +50,7 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-// ── HTML builder ──────────────────────────────────────────────────────────────
+// ── HTML: flashcard viewer ────────────────────────────────────────────────────
 
 function buildUserFlashHtml(
   rectoUrl: string,
@@ -125,6 +125,244 @@ window.addEventListener('load',function(){
 </body></html>`;
 }
 
+// ── HTML: image editor ────────────────────────────────────────────────────────
+
+function buildEditorHtml(b64clean: string): string {
+  return `<!DOCTYPE html><html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#1a1a1a;height:100%;overflow:hidden;-webkit-tap-highlight-color:transparent;user-select:none}
+body{display:flex;flex-direction:column;height:100%;font-family:-apple-system,sans-serif}
+#pw{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:12px;min-height:0}
+#imgwrap{position:relative;display:inline-flex}
+#preview{max-width:100%;max-height:38vh;border-radius:8px;display:block}
+#crop-canvas{display:none;position:absolute;top:0;left:0;border-radius:8px;touch-action:none}
+#controls{padding:10px 16px 4px;background:#111}
+.sr{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.sl{color:#999;font-size:12px;width:72px;flex-shrink:0}
+input[type=range]{-webkit-appearance:none;flex:1;height:4px;background:#444;border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#4a90d9;cursor:pointer;border:2px solid #fff}
+.vl{color:#fff;font-size:12px;width:38px;text-align:right;flex-shrink:0}
+#toolrow{display:flex;gap:10px;padding:6px 16px}
+#brot{flex:1;padding:10px;border-radius:10px;background:#8e44ad;color:#fff;font-size:14px;font-weight:600;border:none}
+#bcrop{flex:1;padding:10px;border-radius:10px;background:#27ae60;color:#fff;font-size:14px;font-weight:600;border:none}
+#bwrow{padding:0 16px 6px}
+#bbw{width:100%;padding:10px;border-radius:10px;background:#e67e22;color:#fff;font-size:14px;font-weight:600;border:none}
+#btns{display:flex;gap:10px;padding:6px 16px 16px}
+#bc{flex:1;padding:13px;border-radius:10px;background:#333;color:#fff;font-size:15px;border:none}
+#bk{flex:1;padding:13px;border-radius:10px;background:#4a90d9;color:#fff;font-size:16px;font-weight:600;border:none}
+#cropbtns{display:none;gap:10px;padding:6px 16px 16px}
+#bcropcancel{flex:1;padding:13px;border-radius:10px;background:#555;color:#fff;font-size:15px;border:none}
+#bcropok{flex:1;padding:13px;border-radius:10px;background:#2ecc71;color:#fff;font-size:15px;font-weight:600;border:none}
+canvas{display:none}
+</style>
+</head>
+<body>
+<div id="pw"><div id="imgwrap"><img id="preview" /><canvas id="crop-canvas"></canvas></div></div>
+<div id="controls">
+  <div class="sr"><span class="sl">Luminosité</span><input type="range" id="sb" min="0" max="200" value="100"><span class="vl" id="vb">100%</span></div>
+  <div class="sr"><span class="sl">Contraste</span><input type="range" id="sc" min="0" max="300" value="100"><span class="vl" id="vc">100%</span></div>
+  <div class="sr"><span class="sl">Saturation</span><input type="range" id="ss" min="0" max="200" value="100"><span class="vl" id="vs">100%</span></div>
+  <div class="sr"><span class="sl">N &amp; B</span><input type="range" id="sg" min="0" max="100" value="0"><span class="vl" id="vg">0%</span></div>
+</div>
+<div id="toolrow">
+  <button id="brot">↻ Tourner</button>
+  <button id="bcrop">✂ Rogner</button>
+</div>
+<div id="bwrow"><button id="bbw">✦ Blanchir fond</button></div>
+<div id="btns">
+  <button id="bc">Annuler</button>
+  <button id="bk">Valider</button>
+</div>
+<div id="cropbtns">
+  <button id="bcropcancel">✗ Annuler</button>
+  <button id="bcropok">✓ Appliquer</button>
+</div>
+<canvas id="c"></canvas>
+<script>
+var img=document.getElementById('preview');
+var cropCC=document.getElementById('crop-canvas');
+var cropCtx=cropCC.getContext('2d');
+var cropActive=false,cx=0,cy=0,cw=0,ch=0,dw=0,dh=0;
+var activeH=null,msx=0,msy=0;
+var HRAD=22,MINSZ=40;
+
+function upd(){
+  var b=document.getElementById('sb').value,c=document.getElementById('sc').value;
+  var s=document.getElementById('ss').value,g=document.getElementById('sg').value;
+  img.style.filter='brightness('+b+'%) contrast('+c+'%) saturate('+s+'%) grayscale('+g+'%)';
+  document.getElementById('vb').textContent=b+'%';document.getElementById('vc').textContent=c+'%';
+  document.getElementById('vs').textContent=s+'%';document.getElementById('vg').textContent=g+'%';
+}
+['sb','sc','ss','sg'].forEach(function(id){document.getElementById(id).addEventListener('input',upd)});
+
+function resetSliders(){
+  document.getElementById('sb').value=100;document.getElementById('sc').value=100;
+  document.getElementById('ss').value=100;document.getElementById('sg').value=0;
+  upd();
+}
+
+// ── Rotation ──────────────────────────────────────────────────────────────────
+document.getElementById('brot').onclick=function(){
+  if(!img.naturalWidth)return;
+  var tc=document.createElement('canvas');
+  tc.width=img.naturalHeight;tc.height=img.naturalWidth;
+  var tx=tc.getContext('2d');
+  tx.translate(tc.width/2,tc.height/2);tx.rotate(Math.PI/2);
+  tx.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);
+  img.src=tc.toDataURL('image/jpeg',0.95);
+  img.style.filter='none';resetSliders();
+};
+
+// ── Rognage ───────────────────────────────────────────────────────────────────
+function drawCrop(){
+  cropCtx.clearRect(0,0,dw,dh);
+  cropCtx.fillStyle='rgba(0,0,0,0.55)';cropCtx.fillRect(0,0,dw,dh);
+  cropCtx.clearRect(cx,cy,cw,ch);
+  cropCtx.strokeStyle='#fff';cropCtx.lineWidth=1.5;cropCtx.strokeRect(cx,cy,cw,ch);
+  cropCtx.strokeStyle='rgba(255,255,255,0.25)';cropCtx.lineWidth=1;
+  for(var i=1;i<=2;i++){
+    cropCtx.beginPath();cropCtx.moveTo(cx+cw*i/3,cy);cropCtx.lineTo(cx+cw*i/3,cy+ch);cropCtx.stroke();
+    cropCtx.beginPath();cropCtx.moveTo(cx,cy+ch*i/3);cropCtx.lineTo(cx+cw,cy+ch*i/3);cropCtx.stroke();
+  }
+  [[cx,cy],[cx+cw,cy],[cx,cy+ch],[cx+cw,cy+ch]].forEach(function(h){
+    cropCtx.beginPath();cropCtx.arc(h[0],h[1],10,0,Math.PI*2);
+    cropCtx.fillStyle='#fff';cropCtx.fill();
+    cropCtx.strokeStyle='rgba(0,0,0,0.4)';cropCtx.lineWidth=1;cropCtx.stroke();
+  });
+}
+
+function enterCrop(){
+  if(!img.naturalWidth)return;
+  dw=img.offsetWidth;dh=img.offsetHeight;
+  if(!dw||!dh)return;
+  cropCC.width=dw;cropCC.height=dh;
+  cropCC.style.width=dw+'px';cropCC.style.height=dh+'px';
+  cropCC.style.display='block';
+  var m=0.12;
+  cx=Math.round(dw*m);cy=Math.round(dh*m);
+  cw=Math.round(dw*(1-2*m));ch=Math.round(dh*(1-2*m));
+  document.getElementById('controls').style.display='none';
+  document.getElementById('toolrow').style.display='none';
+  document.getElementById('bwrow').style.display='none';
+  document.getElementById('btns').style.display='none';
+  document.getElementById('cropbtns').style.display='flex';
+  cropActive=true;drawCrop();
+}
+
+function exitCrop(apply){
+  if(apply){
+    var sx=img.naturalWidth/dw,sy=img.naturalHeight/dh;
+    var tc=document.createElement('canvas');
+    tc.width=Math.round(cw*sx);tc.height=Math.round(ch*sy);
+    var tx=tc.getContext('2d');
+    tx.drawImage(img,Math.round(cx*sx),Math.round(cy*sy),tc.width,tc.height,0,0,tc.width,tc.height);
+    img.src=tc.toDataURL('image/jpeg',0.95);
+    img.style.filter='none';resetSliders();
+  }
+  cropCC.style.display='none';cropActive=false;
+  document.getElementById('controls').style.display='';
+  document.getElementById('toolrow').style.display='';
+  document.getElementById('bwrow').style.display='';
+  document.getElementById('btns').style.display='';
+  document.getElementById('cropbtns').style.display='none';
+}
+
+document.getElementById('bcrop').onclick=enterCrop;
+document.getElementById('bcropok').onclick=function(){exitCrop(true);};
+document.getElementById('bcropcancel').onclick=function(){exitCrop(false);};
+
+function getPos(e){
+  var r=cropCC.getBoundingClientRect();
+  var t=e.touches?(e.touches[0]||e.changedTouches[0]):e;
+  return{x:t.clientX-r.left,y:t.clientY-r.top};
+}
+function hitH(px,py){
+  var corners=[[cx,cy],[cx+cw,cy],[cx,cy+ch],[cx+cw,cy+ch]];
+  for(var i=0;i<4;i++){
+    if(Math.abs(px-corners[i][0])<HRAD&&Math.abs(py-corners[i][1])<HRAD)return i;
+  }
+  if(px>cx&&px<cx+cw&&py>cy&&py<cy+ch)return 4;
+  return null;
+}
+cropCC.addEventListener('touchstart',function(e){
+  e.preventDefault();var p=getPos(e);activeH=hitH(p.x,p.y);
+  if(activeH===4){msx=p.x-cx;msy=p.y-cy;}
+},{passive:false});
+cropCC.addEventListener('touchmove',function(e){
+  e.preventDefault();if(activeH===null)return;
+  var p=getPos(e);
+  var px=Math.max(0,Math.min(dw,p.x)),py=Math.max(0,Math.min(dh,p.y));
+  if(activeH===0){var nw=cx+cw-px,nh=cy+ch-py;if(nw>=MINSZ&&nh>=MINSZ){cx=px;cy=py;cw=nw;ch=nh;}}
+  else if(activeH===1){var nw=px-cx,nh=cy+ch-py;if(nw>=MINSZ&&nh>=MINSZ){cy=py;cw=nw;ch=nh;}}
+  else if(activeH===2){var nw=cx+cw-px,nh=py-cy;if(nw>=MINSZ&&nh>=MINSZ){cx=px;cw=nw;ch=nh;}}
+  else if(activeH===3){var nw=px-cx,nh=py-cy;if(nw>=MINSZ&&nh>=MINSZ){cw=nw;ch=nh;}}
+  else if(activeH===4){cx=Math.max(0,Math.min(dw-cw,px-msx));cy=Math.max(0,Math.min(dh-ch,py-msy));}
+  drawCrop();
+},{passive:false});
+cropCC.addEventListener('touchend',function(e){e.preventDefault();activeH=null;},{passive:false});
+
+// ── Blanchir ──────────────────────────────────────────────────────────────────
+document.getElementById('bbw').onclick=function(){
+  if(!img.naturalWidth)return;
+  var tc=document.createElement('canvas');tc.width=img.naturalWidth;tc.height=img.naturalHeight;
+  var tx=tc.getContext('2d');tx.drawImage(img,0,0);
+  var id=tx.getImageData(0,0,tc.width,tc.height);var px=id.data;
+  var hist=new Array(256).fill(0);
+  for(var i=0;i<px.length;i+=4)hist[Math.round(0.2126*px[i]+0.7152*px[i+1]+0.0722*px[i+2])]++;
+  var total=px.length/4,cumul=0,paper=255;
+  for(var l=255;l>=0;l--){cumul+=hist[l];if(cumul/total>0.1){paper=l;break;}}
+  if(paper<128)paper=200;
+  var sc2=255/Math.max(1,paper);
+  for(var i=0;i<px.length;i+=4){
+    var r=Math.min(255,px[i]*sc2),g=Math.min(255,px[i+1]*sc2),b=Math.min(255,px[i+2]*sc2);
+    var gy=0.2126*r+0.7152*g+0.0722*b;
+    px[i]=Math.max(0,Math.min(255,gy*0.35+r*0.65));
+    px[i+1]=Math.max(0,Math.min(255,gy*0.35+g*0.65));
+    px[i+2]=Math.max(0,Math.min(255,gy*0.35+b*0.65));
+  }
+  tx.putImageData(id,0,0);img.src=tc.toDataURL('image/jpeg',0.95);
+  img.style.filter='none';resetSliders();
+};
+
+// ── Annuler / Valider ─────────────────────────────────────────────────────────
+document.getElementById('bc').onclick=function(){
+  window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({t:'cancel'}));
+};
+document.getElementById('bk').onclick=function(){
+  if(!img.naturalWidth)return;
+  var cv=document.getElementById('c');cv.width=img.naturalWidth;cv.height=img.naturalHeight;
+  var ctx=cv.getContext('2d');ctx.drawImage(img,0,0);
+  var br=parseFloat(document.getElementById('sb').value)/100;
+  var co=parseFloat(document.getElementById('sc').value)/100;
+  var sa=parseFloat(document.getElementById('ss').value)/100;
+  var gr=parseFloat(document.getElementById('sg').value)/100;
+  var id=ctx.getImageData(0,0,cv.width,cv.height);var px=id.data;
+  for(var i=0;i<px.length;i+=4){
+    var r=px[i],g=px[i+1],b=px[i+2];
+    r=r*br;g=g*br;b=b*br;
+    r=(r/255-0.5)*co+0.5;g=(g/255-0.5)*co+0.5;b=(b/255-0.5)*co+0.5;
+    r=r*255;g=g*255;b=b*255;
+    var lum=0.2126*r+0.7152*g+0.0722*b;
+    r=lum+sa*(r-lum);g=lum+sa*(g-lum);b=lum+sa*(b-lum);
+    var gy=0.2126*r+0.7152*g+0.0722*b;
+    r=r+(gy-r)*gr;g=g+(gy-g)*gr;b=b+(gy-b)*gr;
+    px[i]=Math.max(0,Math.min(255,r));px[i+1]=Math.max(0,Math.min(255,g));px[i+2]=Math.max(0,Math.min(255,b));
+  }
+  ctx.putImageData(id,0,0);
+  var out=cv.toDataURL('image/jpeg',0.9).split(',')[1];
+  if(!out){window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({t:'cancel'}));return;}
+  window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({t:'ok',b64:out}));
+};
+
+img.src='data:image/jpeg;base64,${b64clean}';
+</script>
+</body></html>`;
+}
+
 // ── Storage key ───────────────────────────────────────────────────────────────
 
 const acquisStorageKey = (cardId: string) => `revision_acquis_${cardId}`;
@@ -150,6 +388,41 @@ function ScanFlashModal({ visible, card, onClose, onDone }: ScanFlashModalProps)
   const [step, setStep] = useState<ScanStep>("preview");
   const [progress, setProgress] = useState("");
   const [error, setError] = useState("");
+  const [editingFor, setEditingFor] = useState<"recto" | "verso" | null>(null);
+  const [editorHtml, setEditorHtml] = useState<string | null>(null);
+  const [editorLoading, setEditorLoading] = useState(false);
+  const [editedRectoUri, setEditedRectoUri] = useState<string | null>(null);
+  const [editedVersoUri, setEditedVersoUri] = useState<string | null>(null);
+  const editorDoneRef = useRef(false);
+
+  const closeEditor = () => {
+    setEditingFor(null);
+    setEditorHtml(null);
+  };
+
+  const openEditor = async (side: "recto" | "verso") => {
+    const uri = side === "recto" ? rectoUri : versoUri;
+    if (!uri) return;
+    editorDoneRef.current = false;
+    setEditorHtml(null);
+    setEditingFor(side);
+    setEditorLoading(true);
+    try {
+      // Réduire à 600px (taille cible finale) pour limiter le postMessage
+      const small = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 600 } }],
+        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      const path = small.uri.startsWith("file://") ? small.uri.slice(7) : small.uri;
+      const b64 = await RNBlobUtil.fs.readFile(path, "base64");
+      setEditorHtml(buildEditorHtml(b64.replace(/[\r\n]/g, "")));
+    } catch {
+      closeEditor();
+    } finally {
+      setEditorLoading(false);
+    }
+  };
 
   const reset = () => {
     setRectoUri(null);
@@ -157,6 +430,9 @@ function ScanFlashModal({ visible, card, onClose, onDone }: ScanFlashModalProps)
     setStep("preview");
     setProgress("");
     setError("");
+    closeEditor();
+    setEditedRectoUri(null);
+    setEditedVersoUri(null);
   };
 
   const handleClose = () => {
@@ -169,8 +445,13 @@ function ScanFlashModal({ visible, card, onClose, onDone }: ScanFlashModalProps)
       const { scannedImages } = await DocumentScanner.scanDocument({ maxNumDocuments: 1 });
       if (!scannedImages?.length) return;
       const uri = scannedImages[0];
-      if (side === "recto") setRectoUri(uri);
-      else setVersoUri(uri);
+      if (side === "recto") {
+        setRectoUri(uri);
+        setEditedRectoUri(null);
+      } else {
+        setVersoUri(uri);
+        setEditedVersoUri(null);
+      }
     } catch {}
   };
 
@@ -180,13 +461,13 @@ function ScanFlashModal({ visible, card, onClose, onDone }: ScanFlashModalProps)
     setProgress("Redimensionnement...");
     try {
       const resizedRecto = await ImageManipulator.manipulateAsync(
-        rectoUri,
+        editedRectoUri ?? rectoUri,
         [{ resize: { width: 600 } }],
         { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
       );
       const resizedVerso = versoUri
         ? await ImageManipulator.manipulateAsync(
-            versoUri,
+            editedVersoUri ?? versoUri,
             [{ resize: { width: 600 } }],
             { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG }
           )
@@ -245,9 +526,59 @@ function ScanFlashModal({ visible, card, onClose, onDone }: ScanFlashModalProps)
       reset();
       onDone(newFlash);
     } catch (err: any) {
-      setError(err.message || "Une erreur est survenue");
+      setError(err?.message || "Une erreur est survenue");
       setStep("error");
     }
+  };
+
+  const renderThumb = (side: "recto" | "verso") => {
+    const isRecto = side === "recto";
+    const displayUri = isRecto ? (editedRectoUri ?? rectoUri) : (editedVersoUri ?? versoUri);
+    const label = isRecto ? "Recto *" : "Verso (optionnel)";
+    const isEdited = isRecto ? !!editedRectoUri : !!editedVersoUri;
+
+    return (
+      <View key={side} style={{ width: thumbSize, height: thumbSize }}>
+        <TouchableOpacity
+          style={[
+            scanStyles.thumbBox,
+            { width: thumbSize, height: thumbSize, borderColor: colors.flash as string },
+          ]}
+          onPress={() => scanSide(side)}
+        >
+          {displayUri ? (
+            <Image
+              source={{ uri: displayUri }}
+              style={{ width: thumbSize, height: thumbSize, borderRadius: 10 }}
+            />
+          ) : (
+            <View style={scanStyles.thumbPlaceholder}>
+              <Ionicons name="scan-outline" size={32} color={colors.muted as string} />
+              <AppText style={{ color: colors.muted as string, fontSize: 13, marginTop: 6 }}>
+                {label}
+              </AppText>
+            </View>
+          )}
+        </TouchableOpacity>
+
+        {displayUri && (
+          <>
+            {isEdited && (
+              <View style={scanStyles.editedBadge}>
+                <Ionicons name="color-wand" size={10} color="#fff" />
+              </View>
+            )}
+            <TouchableOpacity
+              style={scanStyles.editIcon}
+              onPress={() => openEditor(side)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="color-wand-outline" size={18} color="#fff" />
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    );
   };
 
   return (
@@ -266,46 +597,12 @@ function ScanFlashModal({ visible, card, onClose, onDone }: ScanFlashModalProps)
           {step === "preview" && (
             <View style={scanStyles.body}>
               <View style={scanStyles.thumbRow}>
-                <TouchableOpacity
-                  style={[
-                    scanStyles.thumbBox,
-                    { width: thumbSize, height: thumbSize, borderColor: colors.flash as string },
-                  ]}
-                  onPress={() => scanSide("recto")}
-                >
-                  {rectoUri ? (
-                    <Image source={{ uri: rectoUri }} style={{ width: thumbSize, height: thumbSize, borderRadius: 10 }} />
-                  ) : (
-                    <View style={scanStyles.thumbPlaceholder}>
-                      <Ionicons name="scan-outline" size={32} color={colors.muted as string} />
-                      <AppText style={{ color: colors.muted as string, fontSize: 13, marginTop: 6 }}>
-                        Recto *
-                      </AppText>
-                    </View>
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    scanStyles.thumbBox,
-                    { width: thumbSize, height: thumbSize, borderColor: colors.flash as string },
-                  ]}
-                  onPress={() => scanSide("verso")}
-                >
-                  {versoUri ? (
-                    <Image source={{ uri: versoUri }} style={{ width: thumbSize, height: thumbSize, borderRadius: 10 }} />
-                  ) : (
-                    <View style={scanStyles.thumbPlaceholder}>
-                      <Ionicons name="scan-outline" size={32} color={colors.muted as string} />
-                      <AppText style={{ color: colors.muted as string, fontSize: 13, marginTop: 6 }}>
-                        Verso (optionnel)
-                      </AppText>
-                    </View>
-                  )}
-                </TouchableOpacity>
+                {renderThumb("recto")}
+                {renderThumb("verso")}
               </View>
 
               <AppText style={{ color: colors.textSecondary as string, fontSize: 12, textAlign: "center" }}>
-                Appuyez sur une case pour scanner
+                Appuyez sur une case pour scanner · sur l'icône pour retoucher
               </AppText>
 
               <View style={scanStyles.actions}>
@@ -344,6 +641,46 @@ function ScanFlashModal({ visible, card, onClose, onDone }: ScanFlashModalProps)
               </TouchableOpacity>
             </View>
           )}
+
+          {/* Éditeur d'image : overlay inline dans la même modale */}
+          {editingFor !== null && (
+            <View style={scanStyles.editorOverlay}>
+              {editorLoading && (
+                <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                  <ActivityIndicator color="#fff" size="large" />
+                </View>
+              )}
+              {editorHtml && !editorLoading && (
+                <WebView
+                  source={{ html: editorHtml }}
+                  style={{ flex: 1 }}
+                  scrollEnabled={false}
+                  onMessage={(event) => {
+                    if (editorDoneRef.current) return;
+                    try {
+                      const data = JSON.parse(event.nativeEvent.data);
+                      if (data.t === "cancel") {
+                        closeEditor();
+                      } else if (data.t === "ok") {
+                        editorDoneRef.current = true;
+                        const tempPath = `${RNBlobUtil.fs.dirs.CacheDir}/edited_${Date.now()}.jpg`;
+                        RNBlobUtil.fs
+                          .writeFile(tempPath, data.b64, "base64")
+                          .then(() => {
+                            if (editingFor === "recto") setEditedRectoUri(`file://${tempPath}`);
+                            else setEditedVersoUri(`file://${tempPath}`);
+                            closeEditor();
+                          })
+                          .catch(() => closeEditor());
+                      }
+                    } catch {
+                      closeEditor();
+                    }
+                  }}
+                />
+              )}
+            </View>
+          )}
         </View>
       </View>
     </Modal>
@@ -378,6 +715,28 @@ const scanStyles = StyleSheet.create({
     overflow: "hidden",
   },
   thumbPlaceholder: { flex: 1, alignItems: "center", justifyContent: "center" },
+  editIcon: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editedBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#4a90d9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   actions: { gap: 12 },
   btn: {
     flexDirection: "row",
@@ -388,6 +747,15 @@ const scanStyles = StyleSheet.create({
     gap: 8,
   },
   btnText: { fontSize: 16, fontWeight: "600" },
+  editorOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#1a1a1a",
+    zIndex: 10,
+  },
 });
 
 // ── Main component ─────────────────────────────────────────────────────────────

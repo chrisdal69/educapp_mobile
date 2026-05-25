@@ -116,13 +116,17 @@ export default function TabList({ selectedCard }: Props) {
           },
         ]
       : []),
-    {
-      key: "flash" as ZoneKey,
-      label: "FlashCards",
-      icon: "albums-outline" as IoniconName,
-      colorKey: "flash" as keyof ThemeColors,
-      subtitle: `${(selectedCard.flash ?? []).length} cartes`,
-    },
+    ...((selectedCard.flash ?? []).length > 0
+      ? [
+          {
+            key: "flash" as ZoneKey,
+            label: "FlashCards",
+            icon: "albums-outline" as IoniconName,
+            colorKey: "flash" as keyof ThemeColors,
+            subtitle: `${selectedCard.flash.length} cartes`,
+          },
+        ]
+      : []),
     ...((selectedCard.video ?? []).length > 0
       ? [
           {
@@ -145,13 +149,17 @@ export default function TabList({ selectedCard }: Props) {
           },
         ]
       : []),
-    {
-      key: "revision" as ZoneKey,
-      label: "Mes cartes",
-      icon: "pencil-outline" as IoniconName,
-      colorKey: "flash" as keyof ThemeColors,
-      subtitle: "Mes flashcards",
-    },
+    ...((selectedCard.nbUserFlashes ?? 0) > 0
+      ? [
+          {
+            key: "revision" as ZoneKey,
+            label: "Mes cartes",
+            icon: "pencil-outline" as IoniconName,
+            colorKey: "flash" as keyof ThemeColors,
+            subtitle: "Mes flashcards",
+          },
+        ]
+      : []),
   ];
 
   const [descZone, ...rest] = zones;

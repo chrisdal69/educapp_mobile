@@ -21,7 +21,7 @@ import AppText from "@/components/AppText";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { storageGet, storageSet, storageDelete } from "@/utils/storage";
-import { buildCardFlashImageUrl } from "@/utils/gcsPaths";
+import { buildCardFlashImageUrl, buildCardBgUrl } from "@/utils/gcsPaths";
 import type { Card, CardFlash } from "@/types/cards";
 
 // ── Math rendering ────────────────────────────────────────────────────────────
@@ -94,6 +94,7 @@ function buildFlashHtml(
   bgColor: string,
   textColor: string,
   cardBg: string,
+  bgImageUrl: string,
 ): string {
   const rectoText = renderInlineMath(f.question);
   const versoText = renderInlineMath(f.reponse);
@@ -116,6 +117,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;co
   transform-style:preserve-3d;
   transition:transform 0.5s cubic-bezier(0.4,0,0.2,1);
   border-radius:18px;
+  border:1px solid ${textColor}60;
+  box-shadow:0 6px 24px rgba(0,0,0,0.45);
 }
 .card-inner.flipped{transform:rotateY(180deg)}
 .face{
@@ -125,6 +128,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;co
   background:${cardBg};border-radius:18px;
 }
 .face-back{position:absolute;top:0;left:0;right:0;bottom:0;transform:rotateY(180deg)}
+#bg-blur-layer{position:absolute;top:0;left:0;right:0;bottom:0;background-size:cover;background-position:center;border-radius:18px;transition:opacity 0.5s cubic-bezier(0.4,0,0.2,1)}
 .text-wrap{width:100%;display:flex;justify-content:center}
 .text{max-width:100%;text-align:left;font-size:22px;line-height:1.4}
 .img-wrap{text-align:center;margin-top:18px;width:100%}
@@ -134,7 +138,8 @@ math{font-size:1em}
 <body>
 <div class="scene">
   <div id="card-inner" class="card-inner">
-    <div id="face-recto" class="face face-front">
+    ${bgImageUrl ? `<div id="bg-blur-layer" style="background-image:url('${bgImageUrl}')"></div>` : ""}
+    <div id="face-recto" class="face face-front" ${bgImageUrl ? `style="background:transparent"` : ""}>
       <div class="text-wrap"><div id="text-recto" class="text">${rectoText}</div></div>
       ${rectoImg}
     </div>
@@ -159,8 +164,9 @@ function applyBinarySearch(el){
 }
 function flip(side){
   var card=document.getElementById('card-inner');
-  if(side==='verso')card.classList.add('flipped');
-  else card.classList.remove('flipped');
+  var blur=document.getElementById('bg-blur-layer');
+  if(side==='verso'){card.classList.add('flipped');if(blur)blur.style.opacity='0';}
+  else{card.classList.remove('flipped');if(blur)blur.style.opacity='0.2';}
 }
 window.addEventListener('load',function(){
   applyBinarySearch(document.getElementById('text-recto'));
@@ -376,6 +382,20 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
     [f?.id, f?.imreponse, user?.directoryname, card.repertoire, card.num]
   );
 
+  const cardBgImageUrl = useMemo(
+    () =>
+      card.bg && user?.directoryname
+        ? buildCardBgUrl({
+            directoryname: user.directoryname,
+            repertoire: card.repertoire,
+            num: card.num,
+            bg: card.bg,
+            mobile: false,
+          })
+        : "",
+    [card.bg, user?.directoryname, card.repertoire, card.num]
+  );
+
   const cardHtml = useMemo(
     () =>
       f
@@ -386,10 +406,11 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
             colors.bgflash as string,
             colors.text as string,
             colors.flash as string,
+            cardBgImageUrl,
           )
         : "",
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [f?.id, rectoImageUrl, versoImageUrl, colors.bgflash, colors.text, colors.flash]
+    [f?.id, rectoImageUrl, versoImageUrl, colors.bgflash, colors.text, colors.flash, cardBgImageUrl]
   );
 
   const nonAcquisCount = useMemo(

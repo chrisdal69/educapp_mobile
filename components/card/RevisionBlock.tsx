@@ -19,7 +19,6 @@ import {
 } from "react-native";
 import WebView from "react-native-webview";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import DocumentScanner from "react-native-document-scanner-plugin";
 import * as ImageManipulator from "expo-image-manipulator";
 import RNBlobUtil from "react-native-blob-util";
@@ -70,57 +69,68 @@ function buildUserFlashHtml(
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{background:${bgColor};-webkit-tap-highlight-color:transparent}
-body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;color:${textColor};padding:5px}
-.scene{perspective:1200px;width:100%}
-.card-inner{
-  position:relative;width:100%;
-  transform-style:preserve-3d;
-  transition:transform 0.5s cubic-bezier(0.4,0,0.2,1);
-  border-radius:18px;
-}
-.card-inner.flipped{transform:rotateY(180deg)}
-.face{
-  width:100%;padding:0px 0px;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  backface-visibility:hidden;-webkit-backface-visibility:hidden;
-  background:${cardBg};border-radius:18px;
-  min-height:200px;
-}
-.face-back{position:absolute;top:0;left:0;right:0;bottom:0;transform:rotateY(180deg)}
-.card-img{max-width:100%;max-height:65vh;border-radius:12px;object-fit:contain}
+html,body{height:100%;overflow:hidden;background:${bgColor};-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;color:${textColor};display:flex;justify-content:center;align-items:center}
+#card-wrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:8px}
+#card-inner{width:100%;background:${cardBg};border-radius:18px;overflow-y:auto;-webkit-overflow-scrolling:touch;max-height:calc(100vh - 20px)}
+.face{width:100%;padding:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px}
+.face-hidden{display:none}
+.card-img{max-width:100%;max-height:65vh;border-radius:12px;object-fit:contain;display:block}
 .placeholder{font-size:18px;color:${textColor};opacity:0.5;padding:40px;text-align:center}
-</style></head>
+</style>
+</head>
 <body>
-<div class="scene">
-  <div id="card-inner" class="card-inner">
-    <div id="face-recto" class="face face-front">${rectoImg}</div>
-    <div id="face-verso" class="face face-back">${versoImg}</div>
+<div id="card-wrap">
+  <div id="card-inner">
+    <div id="face-recto" class="face">${rectoImg}</div>
+    <div id="face-verso" class="face face-hidden">${versoImg}</div>
   </div>
 </div>
 <script>
-function flip(side){
-  var card=document.getElementById('card-inner');
-  if(side==='verso'){card.classList.add('flipped');}
-  else{card.classList.remove('flipped');}
-}
-window.addEventListener('load',function(){
-  var recto=document.getElementById('face-recto');
-  var verso=document.getElementById('face-verso');
-  var card=document.getElementById('card-inner');
-  verso.style.visibility='hidden';verso.style.position='relative';verso.style.transform='none';
-  var h2=verso.offsetHeight;
-  verso.style.position='';verso.style.visibility='';verso.style.transform='';
-  var h1=recto.offsetHeight;
-  var maxH=Math.max(h1,h2,200);
-  card.style.height=maxH+'px';
-  recto.style.height=maxH+'px';
-  var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);
-  window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({t:'load',h:h}));
-  card.addEventListener('click',function(){
+(function(){
+  var currentSide='recto';var isAnimating=false;
+  function flip(side){
+    if(side===currentSide||isAnimating)return;
+    isAnimating=true;
+    var card=document.getElementById('card-inner');
+    card.style.transition='transform 0.25s cubic-bezier(0.4,0,0.2,1)';
+    card.style.transform='rotateY(90deg)';
+    setTimeout(function(){
+      currentSide=side;
+      var recto=document.getElementById('face-recto');
+      var verso=document.getElementById('face-verso');
+      if(side==='verso'){recto.classList.add('face-hidden');verso.classList.remove('face-hidden');}
+      else{verso.classList.add('face-hidden');recto.classList.remove('face-hidden');}
+      card.style.transition='none';card.style.transform='rotateY(-90deg)';
+      card.scrollTop=0;
+      requestAnimationFrame(function(){requestAnimationFrame(function(){
+        card.style.transition='transform 0.25s cubic-bezier(0.4,0,0.2,1)';
+        card.style.transform='rotateY(0deg)';
+        setTimeout(function(){
+          card.style.transition='none';card.style.transform='';
+          isAnimating=false;
+        },260);
+      });});
+    },250);
+  }
+  window.flip=flip;
+  document.getElementById('card-inner').addEventListener('click',function(){
+    var newSide=currentSide==='recto'?'verso':'recto';
+    flip(newSide);
     window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({t:'flip'}));
   });
-});
+  var touchStartX=0,touchStartY=0;
+  document.addEventListener('touchstart',function(e){
+    touchStartX=e.touches[0].clientX;touchStartY=e.touches[0].clientY;
+  },{passive:true});
+  document.addEventListener('touchend',function(e){
+    var dx=e.changedTouches[0].clientX-touchStartX;
+    var dy=e.changedTouches[0].clientY-touchStartY;
+    if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*2){
+      window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(dx<0?'swipe_next':'swipe_prev');
+    }
+  },{passive:true});
+})();
 </script>
 </body></html>`;
 }
@@ -784,7 +794,6 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
   const [current, setCurrent] = useState(0);
   const [side, setSide] = useState<"recto" | "verso">("recto");
   const [acquis, setAcquis] = useState<Set<string>>(new Set());
-  const [cardHeight, setCardHeight] = useState(300);
   const [wrapperHeight, setWrapperHeight] = useState(0);
   const [loading, setLoading] = useState(true);
   const [scanVisible, setScanVisible] = useState(false);
@@ -824,7 +833,6 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
       setDeck(shuffle(flashes));
       setCurrent(0);
       setSide("recto");
-      setCardHeight(300);
     } catch {}
     setLoading(false);
   }, [card._id]);
@@ -845,10 +853,6 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
     storageSet(acquisStorageKey(card._id), JSON.stringify([...acquis]));
   }, [acquis, loading, card._id]);
 
-  const injectCurrentSide = useCallback(() => {
-    webviewRef.current?.injectJavaScript(`flip('${sideRef.current}');true;`);
-  }, []);
-
   const goTo = useCallback((idx: number) => {
     if (idx < 0) return;
     const d = deckRef.current;
@@ -865,10 +869,8 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
       }
       setCurrent(0);
       setSide("recto");
-      setCardHeight(300);
       return;
     }
-    setCardHeight(300);
     setSide("recto");
     setCurrent(idx);
   }, []);
@@ -893,7 +895,6 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
     setDeck(shuffle(allFlashRef.current));
     setCurrent(0);
     setSide("recto");
-    setCardHeight(300);
   }, [card._id]);
 
   const flipTo = useCallback((newSide: "recto" | "verso") => {
@@ -934,7 +935,6 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
               const newIdx = Math.min(currentRef.current, nextDeck.length - 1);
               setCurrent(Math.max(0, newIdx));
               setSide("recto");
-              setCardHeight(300);
             } catch {
               Alert.alert("Erreur", "Impossible de supprimer la carte.");
             } finally {
@@ -955,17 +955,7 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
     setDeck((prev) => [...prev, newFlash]);
     setCurrent(newCardIdx);
     setSide("recto");
-    setCardHeight(300);
   }, []);
-
-  const swipeGesture = Gesture.Pan()
-    .runOnJS(true)
-    .activeOffsetX([-25, 25])
-    .failOffsetY([-15, 15])
-    .onEnd((event) => {
-      if (event.translationX < -50) goTo(currentRef.current + 1);
-      else if (event.translationX > 50) goTo(currentRef.current - 1);
-    });
 
   // ── Progress bars ─────────────────────────────────────────────────────────
 
@@ -1092,7 +1082,6 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
                 key={fi.id}
                 onPress={() => {
                   if (deckIdx >= 0) {
-                    setCardHeight(300);
                     setSide("recto");
                     setCurrent(deckIdx);
                   } else {
@@ -1101,7 +1090,6 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
                     newDeck.splice(insertAt, 0, fi);
                     deckRef.current = newDeck;
                     setDeck(newDeck);
-                    setCardHeight(300);
                     setSide("recto");
                     setCurrent(insertAt);
                   }
@@ -1167,52 +1155,29 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
       </View>
 
       {/* Card content */}
-      <GestureDetector gesture={swipeGesture}>
-        <View style={styles.cardWrapper} onLayout={(e) => setWrapperHeight(e.nativeEvent.layout.height)}>
-          <ScrollView
-            style={[styles.cardScroll, { backgroundColor: bgFlash }]}
-            contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
+      <View style={styles.cardWrapper} onLayout={(e) => setWrapperHeight(e.nativeEvent.layout.height)}>
+        {wrapperHeight > 0 && (
+          <WebView
+            ref={webviewRef}
+            key={f?.id ?? "empty"}
+            source={{ html: cardHtml }}
+            scrollEnabled={false}
             showsVerticalScrollIndicator={false}
-          >
-            <View style={{ height: cardHeight, backgroundColor: bgFlash }}>
-              <WebView
-                ref={webviewRef}
-                key={f?.id ?? "empty"}
-                source={{ html: cardHtml }}
-                scrollEnabled={false}
-                showsVerticalScrollIndicator={false}
-                style={{ flex: 1, backgroundColor: "transparent" }}
-                onMessage={(event) => {
-                  try {
-                    const data = JSON.parse(event.nativeEvent.data);
-                    if (data.t === "load") {
-                      if (data.h > 0) setCardHeight(data.h + 24);
-                      injectCurrentSide();
-                    } else if (data.t === "flip") {
-                      flipTo(sideRef.current === "recto" ? "verso" : "recto");
-                    }
-                  } catch {}
-                }}
-              />
-            </View>
-          </ScrollView>
-
-          {/* NavZone : juste sous la carte, tap = carte suivante */}
-          {wrapperHeight > 0 && Math.ceil((wrapperHeight + cardHeight) / 2) < wrapperHeight && (
-            <TouchableOpacity
-              style={{
-                position: "absolute",
-                top: Math.ceil((wrapperHeight + cardHeight) / 2),
-                left: 0,
-                right: 0,
-                bottom: 0,
-              }}
-              onPress={() => goTo(currentRef.current + 1)}
-              activeOpacity={1}
-            />
-          )}
-        </View>
-      </GestureDetector>
+            style={{ height: wrapperHeight, backgroundColor: "transparent" }}
+            onMessage={(event) => {
+              const raw = event.nativeEvent.data;
+              if (raw === "swipe_next") { goTo(currentRef.current + 1); return; }
+              if (raw === "swipe_prev") { goTo(currentRef.current - 1); return; }
+              try {
+                const data = JSON.parse(raw);
+                if (data.t === "flip") {
+                  flipTo(sideRef.current === "recto" ? "verso" : "recto");
+                }
+              } catch {}
+            }}
+          />
+        )}
+      </View>
 
       {/* Suivant */}
       <View style={styles.suivantRow}>
@@ -1312,7 +1277,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   cardWrapper: { flex: 1, position: "relative" },
-  cardScroll: { flex: 1 },
   footer: {
     flexDirection: "row",
     paddingHorizontal: 16,

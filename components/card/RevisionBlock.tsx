@@ -602,7 +602,7 @@ function ScanFlashModal({ visible, card, onClose, onDone }: ScanFlashModalProps)
               </View>
 
               <AppText style={{ color: colors.textSecondary as string, fontSize: 12, textAlign: "center" }}>
-                Appuyez sur une case pour scanner · sur l'icône pour retoucher
+                Appuyez sur une case pour scanner - De préférence, activez le Flash sur votre mobile
               </AppText>
 
               <View style={scanStyles.actions}>

@@ -79,7 +79,7 @@ export default function TabList({ selectedCard }: Props) {
       .then((res) => (res.ok ? res.json() : { flash: [] }))
       .then((data) => setUserFlashCount((data.flash ?? []).length))
       .catch(() => setUserFlashCount(0));
-  }, [selectedCard?._id]);
+  }, [selectedCard]);
 
   const handleCloseModal = useCallback(() => {
     setActiveZone(null);

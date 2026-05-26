@@ -57,6 +57,7 @@ function buildUserFlashHtml(
   bgColor: string,
   textColor: string,
   cardBg: string,
+  shadowColor: string,
 ): string {
   const rectoImg = rectoUrl
     ? `<img src="${rectoUrl}" class="card-img" />`
@@ -75,7 +76,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;co
 #card-inner{width:100%;background:${cardBg};border-radius:18px;overflow-y:auto;-webkit-overflow-scrolling:touch;max-height:calc(100vh - 20px)}
 .face{width:100%;padding:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:200px}
 .face-hidden{display:none}
-.card-img{max-width:100%;max-height:65vh;border-radius:12px;object-fit:contain;display:block}
+.card-img{max-width:100%;max-height:65vh;border-radius:12px;object-fit:contain;display:block;box-shadow:0 3px 18px 3px ${shadowColor}4D}
 .placeholder{font-size:18px;color:${textColor};opacity:0.5;padding:40px;text-align:center}
 </style>
 </head>
@@ -1007,9 +1008,10 @@ export default function RevisionBlock({ card, onCurrentChange }: Props) {
             colors.bgflash as string,
             colors.text as string,
             "transparent",
+            colors.muted as string,
           )
         : "",
-    [f?.id, rectoUrl, versoUrl, colors.bgflash, colors.text] // eslint-disable-line react-hooks/exhaustive-deps
+    [f?.id, rectoUrl, versoUrl, colors.bgflash, colors.text, colors.muted] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const nonAcquisCount = useMemo(

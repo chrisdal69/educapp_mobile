@@ -81,6 +81,42 @@ export default function TabList({ selectedCard }: Props) {
       .catch(() => setUserFlashCount(0));
   }, [selectedCard]);
 
+  const [cloudSubtitle, setCloudSubtitle] = useState("");
+  useEffect(() => {
+    if (!selectedCard?._id || selectedCard.cloud === false) {
+      setCloudSubtitle("");
+      return;
+    }
+    apiFetch("/upload/recup", {
+      method: "POST",
+      body: JSON.stringify({
+        parent: "cloud",
+        repertoire: selectedCard.repertoire,
+        num: selectedCard.num,
+      }),
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: { name: string; url: string }[]) => {
+        const files = Array.isArray(data) ? data : [];
+        if (!files.length) {
+          setCloudSubtitle("Aucun fichier");
+          return;
+        }
+        const extCounts: Record<string, number> = {};
+        files.forEach((f) => {
+          const basename = f.name.split("/").pop() ?? "";
+          const ext = basename.split(".").pop()?.toLowerCase() ?? "fichier";
+          extCounts[ext] = (extCounts[ext] ?? 0) + 1;
+        });
+        setCloudSubtitle(
+          Object.entries(extCounts)
+            .map(([ext, count]) => `${count} ${ext}`)
+            .join(" · ")
+        );
+      })
+      .catch(() => setCloudSubtitle(""));
+  }, [selectedCard]);
+
   const handleCloseModal = useCallback(() => {
     setActiveZone(null);
     setQuizzProgress({ current: 0, total: 0 });
@@ -125,7 +161,7 @@ export default function TabList({ selectedCard }: Props) {
             label: "Quizz",
             icon: "help-circle-outline" as IoniconName,
             colorKey: "quizz" as keyof ThemeColors,
-            subtitle: `${selectedCard.quizz.length} questions`,
+            subtitle: `${selectedCard.quizz.length} question(s)`,
           },
         ]
       : []),
@@ -136,7 +172,7 @@ export default function TabList({ selectedCard }: Props) {
             label: "FlashCards",
             icon: "albums-outline" as IoniconName,
             colorKey: "flash" as keyof ThemeColors,
-            subtitle: `${selectedCard.flash.length} cartes`,
+            subtitle: `${selectedCard.flash.length} carte(s)`,
           },
         ]
       : []),
@@ -147,7 +183,7 @@ export default function TabList({ selectedCard }: Props) {
             label: "Vidéos",
             icon: "play-circle-outline" as IoniconName,
             colorKey: "video" as keyof ThemeColors,
-            subtitle: `${selectedCard.video.length} vidéos`,
+            subtitle: `${selectedCard.video.length} vidéo(s)`,
           },
         ]
       : []),
@@ -158,7 +194,7 @@ export default function TabList({ selectedCard }: Props) {
             label: "Cloud",
             icon: "cloud-outline" as IoniconName,
             colorKey: "cloud" as keyof ThemeColors,
-            subtitle: "",
+            subtitle: cloudSubtitle,
           },
         ]
       : []),
@@ -169,7 +205,7 @@ export default function TabList({ selectedCard }: Props) {
             label: "Mes cartes",
             icon: "pencil-outline" as IoniconName,
             colorKey: "flash" as keyof ThemeColors,
-            subtitle: `${userFlashCount} flashcard(s) uploadée(s)`,
+            subtitle: `${userFlashCount} flashcard(s)`,
           },
         ]
       : []),
@@ -234,7 +270,7 @@ export default function TabList({ selectedCard }: Props) {
                 {zone.label}
               </AppText>
               {!!zone.subtitle && (
-                <AppText style={[styles.tileSubtitle, { color: colors.textSecondary }]}>
+                <AppText style={[styles.tileSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
                   {zone.subtitle}
                 </AppText>
               )}
@@ -260,7 +296,7 @@ export default function TabList({ selectedCard }: Props) {
             {zone.label}
           </AppText>
           {!!zone.subtitle && (
-            <AppText style={[styles.tileSubtitle, { color: colors.textSecondary }]}>
+            <AppText style={[styles.tileSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
               {zone.subtitle}
             </AppText>
           )}

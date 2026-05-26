@@ -7,7 +7,7 @@ export type CardHref = {
 
 export type CardQuizz = {
   id: string;
-  question: string;
+  question: string | any[];
   image?: string;
   options: string[];
   correct: number;

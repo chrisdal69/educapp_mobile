@@ -76,6 +76,44 @@ function renderInlineMath(text: string): string {
   return result.join("");
 }
 
+// ── Slate → HTML ──────────────────────────────────────────────────────────────
+
+type SlateNode = {
+  text?: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  type?: string;
+  align?: string;
+  children?: SlateNode[];
+};
+
+function renderSlateNodeToHtml(node: SlateNode): string {
+  if (typeof node.text === "string") {
+    let html = renderInlineMath(node.text);
+    if (node.bold) html = `<strong>${html}</strong>`;
+    if (node.italic) html = `<em>${html}</em>`;
+    if (node.underline) html = `<u>${html}</u>`;
+    return html;
+  }
+  const alignStyle = node.align ? `;text-align:${node.align}` : "";
+  const children = (node.children ?? []).map(renderSlateNodeToHtml).join("");
+  switch (node.type) {
+    case "bulleted-list":
+      return `<ul style="list-style-type:disc;padding-left:1.4em;margin:0.2em 0${alignStyle}">${children}</ul>`;
+    case "numbered-list":
+      return `<ol style="list-style-type:decimal;padding-left:1.4em;margin:0.2em 0${alignStyle}">${children}</ol>`;
+    case "list-item":
+      return `<li${node.align ? ` style="text-align:${node.align}"` : ""}>${children}</li>`;
+    default:
+      return `<p style="margin:0.15em 0${alignStyle}">${children}</p>`;
+  }
+}
+
+function renderSlateToHtml(nodes: SlateNode[]): string {
+  return nodes.map(renderSlateNodeToHtml).join("");
+}
+
 // ── HTML builder ──────────────────────────────────────────────────────────────
 
 function buildQuestionHtml(
@@ -91,7 +129,9 @@ function buildQuestionHtml(
   colorSelected: string,
   colorSelectedText: string,
 ): string {
-  const questionHtml = renderInlineMath(q.question);
+  const questionHtml = Array.isArray(q.question)
+    ? renderSlateToHtml(q.question as SlateNode[])
+    : renderInlineMath(q.question as string);
   const correctIdx = Number.isInteger(q.correct) ? q.correct : -1;
   const optionsHtml = q.options
     .map((opt, i) => {
@@ -127,7 +167,7 @@ body{
   -webkit-tap-highlight-color:transparent;
 }
 .question-wrap{
-  min-height:${hasImage ? 0 : 350}px;
+  min-height:350px;
   display:flex;
   flex-direction:column;
   justify-content:center;
@@ -139,7 +179,7 @@ body{
   text-align:left;
   font-size:24px;
   line-height:1.3;
-  margin-bottom:${hasImage ? 10 : 0}px;
+  margin-bottom:${hasImage ? 20 : 0}px;
 }
 .img-wrap{
   text-align:center;

@@ -16,7 +16,6 @@ import {
 import WebView from "react-native-webview";
 import katex from "katex";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import AppText from "@/components/AppText";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,7 +23,7 @@ import { storageGet, storageSet, storageDelete } from "@/utils/storage";
 import { buildCardFlashImageUrl, buildCardBgUrl } from "@/utils/gcsPaths";
 import type { Card, CardFlash } from "@/types/cards";
 
-// ── Math rendering ────────────────────────────────────────────────────────────
+// ── Math + Slate rendering ────────────────────────────────────────────────────
 
 function escapeHtml(str: string): string {
   return str
@@ -74,6 +73,29 @@ function renderInlineMath(text: string): string {
   return result.join("");
 }
 
+function slateNodeToHtml(node: any): string {
+  if (typeof node.text === "string") {
+    let html = renderInlineMath(node.text);
+    if (node.bold) html = `<strong>${html}</strong>`;
+    if (node.italic) html = `<em>${html}</em>`;
+    if (node.underline) html = `<u>${html}</u>`;
+    return html;
+  }
+  const children = (node.children ?? []).map(slateNodeToHtml).join("");
+  const align = node.align ? ` style="text-align:${node.align}"` : "";
+  switch (node.type) {
+    case "bulleted-list": return `<ul${align}>${children}</ul>`;
+    case "numbered-list": return `<ol${align}>${children}</ol>`;
+    case "list-item": return `<li${align}>${children}</li>`;
+    default: return `<p${align}>${children}</p>`;
+  }
+}
+
+function flashTextToHtml(value: string | any[]): string {
+  if (Array.isArray(value)) return value.map(slateNodeToHtml).join("");
+  return `<p>${renderInlineMath(String(value ?? ""))}</p>`;
+}
+
 // ── Shuffle ───────────────────────────────────────────────────────────────────
 
 function shuffle<T>(arr: T[]): T[] {
@@ -96,8 +118,8 @@ function buildFlashHtml(
   cardBg: string,
   bgImageUrl: string,
 ): string {
-  const rectoText = renderInlineMath(f.question);
-  const versoText = renderInlineMath(f.reponse);
+  const rectoText = flashTextToHtml(f.question);
+  const versoText = flashTextToHtml(f.reponse);
   const rectoImg = rectoImageUrl
     ? `<div class="img-wrap"><img src="${rectoImageUrl}" /></div>`
     : "";
@@ -110,82 +132,103 @@ function buildFlashHtml(
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:${bgColor};-webkit-tap-highlight-color:transparent}
-body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;color:${textColor};padding:16px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;color:${textColor};height:100vh;overflow:hidden;display:flex;flex-direction:column;justify-content:center;align-items:stretch;padding:10px 16px 0;box-sizing:border-box}
 .scene{perspective:1200px;width:100%}
 .card-inner{
   position:relative;width:100%;
-  transform-style:preserve-3d;
-  transition:transform 0.5s cubic-bezier(0.4,0,0.2,1);
   border-radius:18px;
   border:1px solid ${textColor}60;
   box-shadow:0 6px 24px rgba(0,0,0,0.45);
 }
-.card-inner.flipped{transform:rotateY(180deg)}
 .face{
-  width:100%;padding:28px 20px;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  width:100%;padding:15px 20px;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
   background:${cardBg};border-radius:18px;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  max-height:calc(100vh - 60px);
+  position:relative;z-index:1;
 }
-.face-back{position:absolute;top:0;left:0;right:0;bottom:0;transform:rotateY(180deg)}
-#bg-blur-layer{position:absolute;top:0;left:0;right:0;bottom:0;background-size:cover;background-position:center;border-radius:18px;transition:opacity 0.5s cubic-bezier(0.4,0,0.2,1)}
+#bg-blur-layer{position:absolute;top:0;left:0;right:0;bottom:0;background-size:cover;background-position:center;border-radius:18px;z-index:0}
 .text-wrap{width:100%;display:flex;justify-content:center}
 .text{max-width:100%;text-align:left;font-size:22px;line-height:1.4}
-.img-wrap{text-align:center;margin-top:18px;width:100%}
+.text p{margin:0.25em 0}.text ul{list-style-type:disc;padding-left:1.5em;margin:0.3em 0}.text ol{list-style-type:decimal;padding-left:1.5em;margin:0.3em 0}.text li{margin:0.2em 0}.text strong{font-weight:700}.text em{font-style:italic}.text u{text-decoration:underline}
+.img-wrap{text-align:center;margin-top:8px;width:100%}
 .img-wrap img{max-width:100%;max-height:370px;border-radius:10px;object-fit:contain}
 math{font-size:1em}
 </style></head>
 <body>
 <div class="scene">
   <div id="card-inner" class="card-inner">
-    ${bgImageUrl ? `<div id="bg-blur-layer" style="background-image:url('${bgImageUrl}')"></div>` : ""}
-    <div id="face-recto" class="face face-front" ${bgImageUrl ? `style="background:transparent"` : ""}>
-      <div class="text-wrap"><div id="text-recto" class="text">${rectoText}</div></div>
+    ${bgImageUrl ? `<div id="bg-blur-layer" style="background-image:url('${bgImageUrl}');opacity:0.2"></div>` : ""}
+    <div id="face-recto" class="face" ${bgImageUrl ? `style="background:transparent"` : ""}>
+      <div class="text-wrap"><div class="text">${rectoText}</div></div>
       ${rectoImg}
     </div>
-    <div id="face-verso" class="face face-back">
-      <div class="text-wrap"><div id="text-verso" class="text">${versoText}</div></div>
+    <div id="face-verso" class="face" style="display:none">
+      <div class="text-wrap"><div class="text">${versoText}</div></div>
       ${versoImg}
     </div>
   </div>
 </div>
 <script>
-function applyBinarySearch(el){
-  if(!el)return;
-  var cw=el.parentElement?el.parentElement.clientWidth:window.innerWidth;
-  el.style.width='max-content';
-  if(el.scrollWidth>=cw){
-    el.style.width=cw+'px';
-    var refH=el.offsetHeight;
-    var lo=20,hi=cw;
-    for(var s=0;s<16;s++){var mid=(lo+hi)/2;el.style.width=mid+'px';if(el.offsetHeight<=refH)hi=mid;else lo=mid;}
-    el.style.width=Math.ceil(hi)+'px';
-  }
-}
+var currentSide='recto';
+var isAnimating=false;
 function flip(side){
+  if(side===currentSide||isAnimating)return;
+  isAnimating=true;
   var card=document.getElementById('card-inner');
   var blur=document.getElementById('bg-blur-layer');
-  if(side==='verso'){card.classList.add('flipped');if(blur)blur.style.opacity='0';}
-  else{card.classList.remove('flipped');if(blur)blur.style.opacity='0.2';}
+  card.style.transition='transform 0.25s cubic-bezier(0.4,0,0.2,1)';
+  card.style.transform='rotateY(90deg)';
+  setTimeout(function(){
+    var recto=document.getElementById('face-recto');
+    var verso=document.getElementById('face-verso');
+    if(side==='recto'){
+      recto.style.display='flex';
+      verso.style.display='none';
+      if(blur)blur.style.opacity='0.2';
+    } else {
+      recto.style.display='none';
+      verso.style.display='flex';
+      if(blur)blur.style.opacity='0';
+    }
+    currentSide=side;
+    card.style.transition='none';
+    card.style.transform='rotateY(-90deg)';
+    requestAnimationFrame(function(){requestAnimationFrame(function(){
+      card.style.transition='transform 0.25s cubic-bezier(0.4,0,0.2,1)';
+      card.style.transform='rotateY(0deg)';
+      setTimeout(function(){
+        card.style.transition='none';
+        card.style.transform='';
+        isAnimating=false;
+      },260);
+    });});
+  },250);
 }
 window.addEventListener('load',function(){
-  applyBinarySearch(document.getElementById('text-recto'));
-  var back=document.getElementById('face-verso');
-  back.style.visibility='hidden';back.style.position='relative';back.style.transform='none';
-  applyBinarySearch(document.getElementById('text-verso'));
-  var h2=back.offsetHeight;
-  back.style.position='';back.style.visibility='';back.style.transform='';
-  var h1=document.getElementById('face-recto').offsetHeight;
-  var maxH=Math.max(h1,h2);
-  var card=document.getElementById('card-inner');
-  card.style.height=maxH+'px';
-  document.getElementById('face-recto').style.height=maxH+'px';
-  var h=Math.max(document.body.scrollHeight,document.documentElement.scrollHeight);
-  window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({t:'load',h:h}));
+  window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({t:'load'}));
   document.getElementById('card-inner').addEventListener('click',function(){
     window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({t:'flip'}));
   });
 });
+(function(){
+  var sx=0,sy=0,st=0;
+  document.addEventListener('touchstart',function(e){
+    if(e.touches.length!==1)return;
+    sx=e.touches[0].clientX;sy=e.touches[0].clientY;st=Date.now();
+  },{passive:true});
+  document.addEventListener('touchend',function(e){
+    if(e.changedTouches.length!==1)return;
+    var dx=e.changedTouches[0].clientX-sx;
+    var dy=e.changedTouches[0].clientY-sy;
+    if(Math.abs(dx)>50&&Math.abs(dx)>Math.abs(dy)*2&&Date.now()-st<400){
+      window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(
+        JSON.stringify({t:dx<0?'swipe_next':'swipe_prev'})
+      );
+    }
+  },{passive:true});
+})();
 </script>
 </body></html>`;
 }
@@ -220,7 +263,6 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
   const [current, setCurrent] = useState(0);
   const [side, setSide] = useState<"recto" | "verso">("recto");
   const [acquis, setAcquis] = useState<Set<string>>(new Set());
-  const [cardHeight, setCardHeight] = useState(300);
   const [ready, setReady] = useState(false);
 
   currentRef.current = current;
@@ -284,10 +326,8 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
         }
         setCurrent(0);
         setSide("recto");
-        setCardHeight(300);
         return;
       }
-      setCardHeight(300);
       setSide("recto");
       setCurrent(idx);
     },
@@ -316,7 +356,6 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
     setDeck(shuffle(flash));
     setCurrent(0);
     setSide("recto");
-    setCardHeight(300);
   }, [card._id, flash]);
 
   const flipTo = useCallback((newSide: "recto" | "verso") => {
@@ -325,15 +364,6 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
     setSide(newSide);
     webviewRef.current?.injectJavaScript(`flip('${newSide}');true;`);
   }, []);
-
-  const swipeGesture = Gesture.Pan()
-    .runOnJS(true)
-    .activeOffsetX([-25, 25])
-    .failOffsetY([-15, 15])
-    .onEnd((event) => {
-      if (event.translationX < -50) goTo(currentRef.current + 1);
-      else if (event.translationX > 50) goTo(currentRef.current - 1);
-    });
 
   // ── Progress bars ─────────────────────────────────────────────────────────
 
@@ -460,7 +490,6 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
                 key={fi.id}
                 onPress={() => {
                   if (deckIdx >= 0) {
-                    setCardHeight(300);
                     setSide("recto");
                     setCurrent(deckIdx);
                   } else {
@@ -469,7 +498,6 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
                     newDeck.splice(insertAt, 0, fi);
                     deckRef.current = newDeck;
                     setDeck(newDeck);
-                    setCardHeight(300);
                     setSide("recto");
                     setCurrent(insertAt);
                   }
@@ -535,52 +563,36 @@ export default function FlashBlock({ card, onCurrentChange }: Props) {
       </View>
 
       {/* Card content */}
-      <GestureDetector gesture={swipeGesture}>
-        <View style={styles.cardWrapper} onLayout={(e) => setWrapperHeight(e.nativeEvent.layout.height)}>
-          <ScrollView
-            style={[styles.cardScroll, { backgroundColor: bgFlash }]}
-            contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={{ height: cardHeight, backgroundColor: bgFlash }}>
-              <WebView
-                ref={webviewRef}
-                key={f?.id ?? "empty"}
-                source={{ html: cardHtml }}
-                scrollEnabled={false}
-                showsVerticalScrollIndicator={false}
-                style={{ flex: 1, backgroundColor: "transparent" }}
-                onMessage={(event) => {
-                  try {
-                    const data = JSON.parse(event.nativeEvent.data);
-                    if (data.t === "load") {
-                      if (data.h > 0) setCardHeight(data.h + 24);
-                      injectCurrentSide();
-                    } else if (data.t === "flip") {
-                      flipTo(sideRef.current === "recto" ? "verso" : "recto");
-                    }
-                  } catch {}
-                }}
-              />
-            </View>
-          </ScrollView>
-
-          {/* NavZone : juste sous la carte, aussi haute que possible, tap = carte suivante */}
-          {wrapperHeight > 0 && Math.ceil((wrapperHeight + cardHeight) / 2) < wrapperHeight && (
-            <TouchableOpacity
-              style={{
-                position: "absolute",
-                top: Math.ceil((wrapperHeight + cardHeight) / 2),
-                left: 0,
-                right: 0,
-                bottom: 0,
-              }}
-              onPress={() => goTo(currentRef.current + 1)}
-              activeOpacity={1}
-            />
+      <View
+        style={styles.cardWrapper}
+        onLayout={(e) => setWrapperHeight(e.nativeEvent.layout.height)}
+      >
+          {wrapperHeight > 0 && (
+          <WebView
+            ref={webviewRef}
+            key={f?.id ?? "empty"}
+            source={{ html: cardHtml }}
+            scrollEnabled={false}
+            style={{ height: wrapperHeight, backgroundColor: "transparent" }}
+            onMessage={(event) => {
+              try {
+                const data = JSON.parse(event.nativeEvent.data);
+                if (data.t === "load") {
+                  injectCurrentSide();
+                } else if (data.t === "flip") {
+                  flipTo(sideRef.current === "recto" ? "verso" : "recto");
+                } else if (data.t === "swipe_next") {
+                  goTo(currentRef.current + 1);
+                } else if (data.t === "swipe_prev") {
+                  goTo(currentRef.current - 1);
+                }
+              } catch {}
+            }}
+          />
           )}
-        </View>
-      </GestureDetector>
+
+
+      </View>
 
       {/* Footer: Acquis + Next */}
       <View style={styles.footer}>
@@ -647,7 +659,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
-  cardWrapper: { flex: 1, position: "relative" },
+  cardWrapper: { flex: 1, position: "relative"},
   cardScroll: { flex: 1 },
   footer: {
     flexDirection: "row",

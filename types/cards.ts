@@ -15,9 +15,9 @@ export type CardQuizz = {
 
 export type CardFlash = {
   id: string;
-  question: string;
+  question: string | any[];
   imquestion?: string;
-  reponse: string;
+  reponse: string | any[];
   imreponse?: string;
 };
 

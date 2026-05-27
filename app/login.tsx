@@ -70,7 +70,7 @@ function computeLetterPositions(): Array<{ x: number; y: number }> {
 }
 
 export default function LoginScreen() {
-  const { login, selectClass, teachersClasses, followedClasses, pendingClassSelection } =
+  const { login, logout, selectClass, teachersClasses, followedClasses, pendingClassSelection } =
     useAuth();
   const router = useRouter();
 
@@ -104,6 +104,15 @@ export default function LoginScreen() {
       handleSelectClass(allClasses[0].id);
     }
   }, [pendingClassSelection]);
+
+  useEffect(() => {
+    if (!pendingClassSelection || allClasses.length > 0) return;
+    const timer = setTimeout(async () => {
+      await logout();
+      revertToLoginState();
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [pendingClassSelection, teachersClasses.length, followedClasses.length]);
 
   // Intro animation
   useEffect(() => {
@@ -230,9 +239,17 @@ export default function LoginScreen() {
     await playExitAnimation();
     const result = await selectClass(classId);
     if (!result.ok) {
-      setError(result.message ?? "Erreur lors de la connexion");
+      const msg = result.message ?? "Erreur lors de la connexion";
+      setError(msg);
       setSelectedClassId(null);
       revertToLoginState();
+      if (/expir|session|token|authentif/i.test(msg)) {
+        setTimeout(async () => {
+          setError("");
+          await logout();
+          revertToLoginState();
+        }, 3000);
+      }
     }
     // On success: AuthContext updates user → root layout navigates to /(tabs)
   }

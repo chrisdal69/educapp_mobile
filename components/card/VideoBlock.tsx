@@ -1,4 +1,6 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import WebView from "react-native-webview";
+import katex from "katex";
 import {
   View,
   ScrollView,
@@ -33,6 +35,109 @@ function extractVideoId(raw: string): string {
   return "";
 }
 
+// ── KaTeX inline helpers ──────────────────────────────────────────────────────
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function renderInlineMath(text: string): string {
+  const result: string[] = [];
+  const chars = Array.from(text);
+  let buffer = "";
+  let inMath = false;
+  for (let i = 0; i < chars.length; i++) {
+    const c = chars[i];
+    if (c === "\\" && chars[i + 1] === "$") { buffer += "$"; i++; continue; }
+    if (c === "$") {
+      if (inMath) {
+        if (buffer.length === 0) {
+          result.push(escapeHtml("$$"));
+        } else {
+          try {
+            result.push(katex.renderToString(buffer, { output: "mathml", throwOnError: false }));
+          } catch {
+            result.push(escapeHtml(`$${buffer}$`));
+          }
+        }
+        buffer = ""; inMath = false;
+      } else {
+        if (buffer.length > 0) result.push(escapeHtml(buffer));
+        buffer = ""; inMath = true;
+      }
+      continue;
+    }
+    buffer += c;
+  }
+  if (inMath) result.push(escapeHtml(`$${buffer}`));
+  else if (buffer.length > 0) result.push(escapeHtml(buffer));
+  return result.join("");
+}
+
+function buildKatexHtml(text: string, color: string, fontSize: number, maxLines: number): string {
+  const rendered = renderInlineMath(text);
+  // N'utilise PAS display:-webkit-box : dans WKWebView, les éléments MathML <math>
+  // à l'intérieur d'un flex webkit s'écrasent à 0px de hauteur → scrollHeight faux.
+  // max-height + overflow:hidden fonctionne avec MathML sans créer de flex container.
+  const clipH = Math.ceil(fontSize * 1.5 * maxLines) + 8;
+  const clipStyle = maxLines > 0 ? `overflow:hidden;max-height:${clipH}px;` : "";
+  // ResizeObserver se déclenche après que MathML est laid out.
+  // Renvoie la hauteur visible (#kl), respectant le max-height CSS si défini.
+  const measureScript = `<script>(function(){var el=document.getElementById('kl');function r(){var h=el.getBoundingClientRect().height;if(h>0&&window.ReactNativeWebView)window.ReactNativeWebView.postMessage(String(Math.ceil(h)));}new ResizeObserver(r).observe(el);})();</script>`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><style>*{box-sizing:border-box;margin:0;padding:0}html,body{background:transparent;width:100%}#kl{font-family:-apple-system,system-ui,'Helvetica Neue',sans-serif;font-size:${fontSize}px;line-height:1.5;color:${color};${clipStyle}}math{font-size:1em;vertical-align:middle}</style></head><body><div id="kl">${rendered}</div>${measureScript}</body></html>`;
+}
+
+function KatexLine({
+  text,
+  color,
+  fontSize = 13,
+  maxLines = 0,
+  style,
+}: {
+  text: string;
+  color: string;
+  fontSize?: number;
+  maxLines?: number;
+  style?: any;
+}) {
+  const hasMath = text.includes("$");
+  // Hauteur max possible (plafond pour maxLines > 0)
+  const maxH = maxLines > 0 ? Math.ceil(fontSize * 1.5 * maxLines) + 8 : Infinity;
+  // Départ à 1 ligne — s'adapte vers le haut après mesure (expansion naturelle)
+  const initH = maxLines > 0
+    ? Math.ceil(fontSize * 1.8) + 4
+    : Math.ceil(fontSize * 3.5);
+  const [height, setHeight] = useState(initH);
+
+  const html = useMemo(
+    () => hasMath ? buildKatexHtml(text, color, fontSize, maxLines) : "",
+    [text, color, fontSize, maxLines, hasMath]
+  );
+
+  if (!hasMath) {
+    return (
+      <AppText numberOfLines={maxLines || undefined} style={[{ color, fontSize }, style]}>
+        {text}
+      </AppText>
+    );
+  }
+
+  return (
+    <View style={[{ height }, style]}>
+      <WebView
+        source={{ html }}
+        style={{ flex: 1, backgroundColor: "transparent" }}
+        scrollEnabled={false}
+        originWhitelist={["*"]}
+        onMessage={(e) => {
+          const h = parseInt(e.nativeEvent.data, 10);
+          if (h > 0) setHeight(Math.min(h + 4, maxH));
+        }}
+      />
+    </View>
+  );
+}
+
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const BAR_GAP = 6;
@@ -55,6 +160,7 @@ export default function VideoBlock({ card }: Props) {
   const swipeDirRef = useRef<"left" | "right" | null>(null);
   const playlistScrollRef = useRef<ScrollView>(null);
   const playlistViewHeightRef = useRef(0);
+  const isFirstRender = useRef(true);
 
   const videoHeight = Math.round((width * 9) / 16 - 18);
 
@@ -78,6 +184,13 @@ export default function VideoBlock({ card }: Props) {
   }, [pendingCommit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      // Force un layout pass pour que les WebViews KaTeX dans la ScrollView
+      // reçoivent leur frame correct avant la mesure injectedJavaScript
+      setTimeout(() => playlistScrollRef.current?.scrollTo({ y: 0, animated: false }), 50);
+      return;
+    }
     const itemH = PLAYLIST_ITEM_H + 20;
     const y = current * itemH - playlistViewHeightRef.current / 2 + itemH / 2;
     playlistScrollRef.current?.scrollTo({ y: Math.max(0, y), animated: true });
@@ -194,9 +307,7 @@ export default function VideoBlock({ card }: Props) {
             {hasDuration ? ` - ${slide.duration} mn` : ""}
           </AppText>
           {!!slide.txt && (
-            <AppText style={[styles.videoTitle, { color: colors.text as string }]}>
-              {slide.txt}
-            </AppText>
+            <KatexLine text={slide.txt} color={colors.text as string} fontSize={13} style={{ marginTop: 3 }} />
           )}
 
         </View>
@@ -306,6 +417,9 @@ export default function VideoBlock({ card }: Props) {
         {videos.map((v, idx) => {
           const isSelected = idx === current;
           const isOddNumber = (idx + 1) % 2 !== 0;
+          const txtHasKatex = (v.txt || "").includes("$");
+          const hoverHasKatex = (v.hover || "").includes("$");
+          const hoverMarginTop = !txtHasKatex && !hoverHasKatex ? 8 : 2;
           const itemBg = isOddNumber
             ? (colors.video as string) + "80"
             : (colors.video as string);
@@ -341,19 +455,20 @@ export default function VideoBlock({ card }: Props) {
                 </View>
 
                 <View style={styles.playlistText}>
-                  <AppText
-                    numberOfLines={2}
-                    style={[styles.playlistItemTitle, { color: colors.text as string }]}
-                  >
-                    {v.txt || "Vidéo sans titre"}
-                  </AppText>
+                  <KatexLine
+                    text={v.txt || "Vidéo sans titre"}
+                    color={colors.text as string}
+                    fontSize={13}
+                    maxLines={2}
+                  />
                   {!!v.hover && (
-                    <AppText
-                      numberOfLines={2}
-                      style={[styles.playlistDuration, { color: colors.textSecondary as string }]}
-                    >
-                      {v.hover}
-                    </AppText>
+                    <KatexLine
+                      text={v.hover}
+                      color={colors.textSecondary as string}
+                      fontSize={11}
+                      maxLines={2}
+                      style={{ marginTop: hoverMarginTop }}
+                    />
                   )}
                 </View>
               </View>
@@ -422,7 +537,7 @@ const styles = StyleSheet.create({
 
   playlistScroll: { flex: 1},
   playlistItem: {
-    height: PLAYLIST_ITEM_H,
+    minHeight: PLAYLIST_ITEM_H,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,

@@ -8,6 +8,7 @@ export const UNAUTHORIZED_EVENT = "auth:unauthorized";
 
 const getDevHost = () => {
   if (Platform.OS === "android" && !Constants.isDevice) return "10.0.2.2";
+  if (Platform.OS === "ios" && !Constants.isDevice) return "localhost";
   const fromEnv = process.env.EXPO_PUBLIC_DEV_HOST;
   if (fromEnv) return fromEnv;
   return Constants.expoConfig?.hostUri?.split(":").shift() ?? "192.168.1.39";

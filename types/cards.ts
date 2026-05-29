@@ -2,6 +2,7 @@ export type CardHref = {
   txt: string;
   href: string;
   hover?: string;
+  duration?: number | null;
   visible?: boolean;
 };
 

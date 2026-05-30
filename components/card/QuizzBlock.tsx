@@ -324,6 +324,17 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
   const evalMode = card.evalQuizz === "oui";
   const trainingMode = !evalMode;
 
+  const [displayQuizz] = useState<CardQuizz[]>(() => {
+    const src = card.quizz ?? [];
+    if (!card.shuffleQuizz || card.evalQuizz !== "oui" || src.length < 2) return src;
+    const arr = [...src];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  });
+
   const webviewRef = useRef<WebView>(null);
   const currentRef = useRef(0);
   const answersRef = useRef<Record<string, number>>({});
@@ -380,8 +391,8 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
 
   // Notify parent of progress
   useEffect(() => {
-    onCurrentChange?.(current, quizz.length);
-  }, [current, quizz.length, onCurrentChange]);
+    onCurrentChange?.(current, displayQuizz.length);
+  }, [current, displayQuizz.length, onCurrentChange]);
 
   // Fetch history for eval mode
   useEffect(() => {
@@ -427,7 +438,7 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
   }, [evalMode, user, card._id]);
 
   const injectCurrentState = useCallback(() => {
-    const q = quizz[currentRef.current];
+    const q = displayQuizz[currentRef.current];
     if (!q || !webviewRef.current) return;
     const ans = answersRef.current[q.id];
     const fa = firstAnswersRef.current[q.id];
@@ -436,7 +447,7 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
     webviewRef.current.injectJavaScript(
       `updateState(${ans !== undefined ? ans : "null"},${fa !== undefined ? fa : "null"},${sub},${sub},${oc !== undefined && oc !== null ? oc : "undefined"});true;`,
     );
-  }, [quizz]);
+  }, [displayQuizz]);
 
   const handleOptionSelect = useCallback(
     (qid: string, optionIdx: number) => {
@@ -470,12 +481,12 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
 
   const goTo = useCallback(
     (idx: number) => {
-      const clamped = Math.max(0, Math.min(quizz.length - 1, idx));
+      const clamped = Math.max(0, Math.min(displayQuizz.length - 1, idx));
       if (clamped === currentRef.current) return;
       setQuestionHeight(320);
       setCurrent(clamped);
     },
-    [quizz.length],
+    [displayQuizz.length],
   );
 
   const handleSubmit = useCallback(async () => {
@@ -501,7 +512,7 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
       if (Array.isArray(payload.corrects)) {
         correctsRef.current = payload.corrects;
       }
-      const q = quizz[currentRef.current];
+      const q = displayQuizz[currentRef.current];
       if (q && webviewRef.current) {
         const ans = answersRef.current[q.id];
         const oc = correctsRef.current[currentRef.current];
@@ -535,8 +546,8 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
   const availableWidth = screenWidth - 32 - RESET_WIDTH;
   const barWidth = Math.max(
     20,
-    (availableWidth - BAR_GAP * (Math.min(quizz.length, MAX_VISIBLE) - 1)) /
-      Math.min(quizz.length, MAX_VISIBLE),
+    (availableWidth - BAR_GAP * (Math.min(displayQuizz.length, MAX_VISIBLE) - 1)) /
+      Math.min(displayQuizz.length, MAX_VISIBLE),
   );
 
   const getBarBg = useCallback(
@@ -578,7 +589,7 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
 
   // ── HTML for current question ─────────────────────────────────────────────
 
-  const q = quizz[current];
+  const q = displayQuizz[current];
   const imageUrl = useMemo(
     () =>
       q?.image && user?.directoryname
@@ -624,7 +635,7 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
     ],
   );
 
-  const allAnswered = quizz.every((qi) => answers[qi.id] !== undefined);
+  const allAnswered = displayQuizz.every((qi) => answers[qi.id] !== undefined);
 
   const footerSlide = useRef(new Animated.Value(0)).current;
 
@@ -695,7 +706,7 @@ export default function QuizzBlock({ card, onCurrentChange }: Props) {
           contentContainerStyle={[styles.barsContent, { gap: BAR_GAP }]}
           style={styles.barsScroll}
         >
-          {quizz.map((qi, idx) => (
+          {displayQuizz.map((qi, idx) => (
             <TouchableOpacity
               key={qi.id}
               onPress={() => goTo(idx)}

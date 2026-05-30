@@ -39,6 +39,7 @@ export type Card = {
   nbUserFlashes?: number;
   evalQuizz?: string;
   resultatQuizz?: boolean;
+  shuffleQuizz?: boolean;
   visible?: boolean;
   order: number;
   classe: string;

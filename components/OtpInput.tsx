@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
+import { useTheme } from "@/contexts/ThemeContext";
 
 type Props = {
   value: string;
@@ -16,6 +17,7 @@ export default function OtpInput({
   disabled = false,
   caseTransform = "upper",
 }: Props) {
+  const { colors } = useTheme();
   const refs = useRef<(TextInput | null)[]>([]);
   const chars = Array.from({ length }, (_, i) => value[i] ?? "");
 
@@ -58,7 +60,7 @@ export default function OtpInput({
           ref={(el) => {
             refs.current[i] = el;
           }}
-          style={styles.box}
+          style={[styles.box, { backgroundColor: colors.border, color: colors.text }]}
           value={ch}
           onChangeText={(text) => handleChange(i, text)}
           onKeyPress={({ nativeEvent }) => handleKeyPress(i, nativeEvent.key)}
@@ -79,8 +81,6 @@ const styles = StyleSheet.create({
   box: {
     width: 52,
     height: 56,
-    backgroundColor: "#333940",
-    color: "#fff",
     borderRadius: 8,
     textAlign: "center",
     fontSize: 22,

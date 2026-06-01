@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator, KeyboardAvoidingView, Platform,
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
@@ -6,12 +6,17 @@ import {
 import { useRouter } from "expo-router";
 import { apiFetch } from "../utils/apiClient";
 import { useAuth } from "../contexts/AuthContext";
+import { useTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../theme";
 
 const CONFIRM_PHRASE = "JE VEUX ME DESINSCRIRE DE CETTE CLASSE";
 
 export default function LeaveClassScreen() {
   const router      = useRouter();
   const { user, logout } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const [confirmText, setConfirmText] = useState("");
   const [error, setError]   = useState("");
   const [loading, setLoading] = useState(false);
@@ -60,7 +65,7 @@ export default function LeaveClassScreen() {
             value={confirmText}
             onChangeText={setConfirmText}
             placeholder="Saisissez la phrase ci-dessus"
-            placeholderTextColor="#888"
+            placeholderTextColor={colors.muted}
             editable={!loading}
             autoCapitalize="characters"
           />
@@ -82,24 +87,26 @@ export default function LeaveClassScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#25292e" },
-  inner: { flexGrow: 1, padding: 24, paddingTop: 48 },
-  backBtn: { marginBottom: 16 },
-  backText: { color: "#ffd33d", fontSize: 15 },
-  title: { fontSize: 22, fontWeight: "bold", color: "#fff", marginBottom: 20 },
-  card: { backgroundColor: "#1e2227", borderRadius: 12, padding: 20 },
-  warningIcon: { fontSize: 36, textAlign: "center", marginBottom: 12 },
-  warningText: { color: "#aaa", fontSize: 14, lineHeight: 20, marginBottom: 20, textAlign: "center" },
-  label: { color: "#ccc", fontSize: 14, marginBottom: 8 },
-  phrase: {
-    color: "#ffd33d", fontSize: 13, fontWeight: "bold",
-    backgroundColor: "#2a2f35", padding: 10, borderRadius: 6,
-    marginBottom: 14, textAlign: "center",
-  },
-  input: { backgroundColor: "#333940", color: "#fff", borderRadius: 8, padding: 14, marginBottom: 14, fontSize: 15 },
-  error: { color: "#ff6b6b", fontSize: 13, marginBottom: 10 },
-  btn: { backgroundColor: "#f97316", borderRadius: 8, padding: 16, alignItems: "center" },
-  btnDisabled: { opacity: 0.4 },
-  btnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    inner: { flexGrow: 1, padding: 24, paddingTop: 48 },
+    backBtn: { marginBottom: 16 },
+    backText: { color: c.primary, fontSize: 15 },
+    title: { fontSize: 22, fontWeight: "bold", color: c.text, marginBottom: 20 },
+    card: { backgroundColor: c.surface, borderRadius: 12, padding: 20 },
+    warningIcon: { fontSize: 36, textAlign: "center", marginBottom: 12 },
+    warningText: { color: c.muted, fontSize: 14, lineHeight: 20, marginBottom: 20, textAlign: "center" },
+    label: { color: c.textSecondary, fontSize: 14, marginBottom: 8 },
+    phrase: {
+      color: c.primary, fontSize: 13, fontWeight: "bold",
+      backgroundColor: c.cardBg, padding: 10, borderRadius: 6,
+      marginBottom: 14, textAlign: "center",
+    },
+    input: { backgroundColor: c.border, color: c.text, borderRadius: 8, padding: 14, marginBottom: 14, fontSize: 15 },
+    error: { color: "#ff6b6b", fontSize: 13, marginBottom: 10 },
+    btn: { backgroundColor: "#f97316", borderRadius: 8, padding: 16, alignItems: "center" },
+    btnDisabled: { opacity: 0.4 },
+    btnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  });
+}

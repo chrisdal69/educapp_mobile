@@ -13,6 +13,8 @@ import {
 import { useRouter } from "expo-router";
 import OtpInput from "../components/OtpInput";
 import { API_URL } from "../utils/apiClient";
+import { useTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../theme";
 
 const CODE_TTL_MS = 7 * 60 * 1000;
 
@@ -32,6 +34,8 @@ type Student = { nom: string; prenom: string; free?: boolean; id_user?: string |
 
 export default function SignupScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
@@ -308,7 +312,7 @@ export default function SignupScreen() {
               disabled={teacherCode.length !== 4 || loading}
             >
               {loading
-                ? <ActivityIndicator color="#25292e" />
+                ? <ActivityIndicator color={colors.bg} />
                 : <Text style={styles.btnText}>Valider</Text>}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.back()} style={styles.linkWrap}>
@@ -330,7 +334,7 @@ export default function SignupScreen() {
               onFocus={() => setShowNomSuggestions(true)}
               onBlur={() => setTimeout(() => setShowNomSuggestions(false), 200)}
               placeholder="Votre nom"
-              placeholderTextColor="#888"
+              placeholderTextColor={colors.muted}
               editable={!loading}
               autoCapitalize="words"
             />
@@ -352,7 +356,7 @@ export default function SignupScreen() {
               onFocus={() => setShowPrenomSuggestions(true)}
               onBlur={() => setTimeout(() => setShowPrenomSuggestions(false), 200)}
               placeholder="Votre prénom"
-              placeholderTextColor="#888"
+              placeholderTextColor={colors.muted}
               editable={!loading}
               autoCapitalize="words"
             />
@@ -374,7 +378,7 @@ export default function SignupScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               placeholder="votre@email.com"
-              placeholderTextColor="#888"
+              placeholderTextColor={colors.muted}
               editable={!loading}
             />
 
@@ -384,7 +388,7 @@ export default function SignupScreen() {
               disabled={!nom.trim() || !prenom.trim() || !email.trim() || loading}
             >
               {loading
-                ? <ActivityIndicator color="#25292e" />
+                ? <ActivityIndicator color={colors.bg} />
                 : <Text style={styles.btnText}>Valider</Text>}
             </TouchableOpacity>
             <TouchableOpacity
@@ -409,7 +413,7 @@ export default function SignupScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 placeholder="Mot de passe"
-                placeholderTextColor="#888"
+                placeholderTextColor={colors.muted}
                 editable={!loading}
                 autoComplete="new-password"
               />
@@ -447,7 +451,7 @@ export default function SignupScreen() {
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showConfirm}
                 placeholder="Confirmation"
-                placeholderTextColor="#888"
+                placeholderTextColor={colors.muted}
                 editable={!loading}
               />
               <TouchableOpacity onPress={() => setShowConfirm((v) => !v)} style={styles.eyeBtn}>
@@ -464,7 +468,7 @@ export default function SignupScreen() {
               disabled={!isPasswordValid || loading}
             >
               {loading
-                ? <ActivityIndicator color="#25292e" />
+                ? <ActivityIndicator color={colors.bg} />
                 : <Text style={styles.btnText}>S'inscrire</Text>}
             </TouchableOpacity>
             <TouchableOpacity
@@ -492,7 +496,7 @@ export default function SignupScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 placeholder="Mot de passe"
-                placeholderTextColor="#888"
+                placeholderTextColor={colors.muted}
                 editable={!loading}
                 autoComplete="current-password"
               />
@@ -507,7 +511,7 @@ export default function SignupScreen() {
               disabled={!password || loading}
             >
               {loading
-                ? <ActivityIndicator color="#25292e" />
+                ? <ActivityIndicator color={colors.bg} />
                 : <Text style={styles.btnText}>Se connecter</Text>}
             </TouchableOpacity>
             <TouchableOpacity
@@ -537,7 +541,7 @@ export default function SignupScreen() {
               disabled={verificationCode.length !== 4 || loading}
             >
               {loading
-                ? <ActivityIndicator color="#25292e" />
+                ? <ActivityIndicator color={colors.bg} />
                 : <Text style={styles.btnText}>Valider</Text>}
             </TouchableOpacity>
             <TouchableOpacity
@@ -570,63 +574,65 @@ export default function SignupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#25292e" },
-  inner: { flexGrow: 1, padding: 24, paddingTop: 48 },
-  title: { fontSize: 26, fontWeight: "bold", color: "#ffd33d", textAlign: "center", marginBottom: 24 },
-  stepsRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 24 },
-  stepItem: { flex: 1, alignItems: "center" },
-  stepCircle: {
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: "#444", alignItems: "center", justifyContent: "center",
-  },
-  stepCircleActive: { backgroundColor: "#ffd33d" },
-  stepNum: { fontSize: 13, fontWeight: "bold", color: "#aaa" },
-  stepNumActive: { color: "#25292e" },
-  stepLabel: { fontSize: 10, color: "#aaa", marginTop: 4, textAlign: "center" },
-  card: { backgroundColor: "#1e2227", borderRadius: 12, padding: 20 },
-  centered: { alignItems: "center" },
-  cardTitle: { fontSize: 18, fontWeight: "bold", color: "#fff", textAlign: "center", marginBottom: 12 },
-  subtitle: { color: "#aaa", fontSize: 13, textAlign: "center", marginBottom: 16 },
-  label: { color: "#ccc", fontSize: 14, marginBottom: 6 },
-  input: {
-    backgroundColor: "#333940", color: "#fff", borderRadius: 8,
-    padding: 14, marginBottom: 14, fontSize: 16,
-  },
-  suggestions: {
-    backgroundColor: "#2a2f35", borderRadius: 8, marginTop: -10, marginBottom: 10,
-    borderWidth: 1, borderColor: "#444",
-  },
-  suggestion: { padding: 12, borderBottomWidth: 1, borderBottomColor: "#444" },
-  suggestionText: { color: "#fff", fontSize: 14 },
-  passwordRow: { flexDirection: "row", alignItems: "center", marginBottom: 14, gap: 8 },
-  eyeBtn: { padding: 10 },
-  eyeText: { fontSize: 18 },
-  rulesBox: { marginBottom: 8 },
-  rule: { color: "#888", fontSize: 13, marginBottom: 2 },
-  ruleOk: { color: "#22c55e" },
-  strengthTrack: { height: 6, backgroundColor: "#444", borderRadius: 3, marginTop: 8 },
-  strengthFill: { height: 6, borderRadius: 3 },
-  btn: {
-    backgroundColor: "#ffd33d", borderRadius: 8, padding: 16,
-    alignItems: "center", marginTop: 4,
-  },
-  btnDisabled: { opacity: 0.5 },
-  btnText: { color: "#25292e", fontSize: 16, fontWeight: "bold" },
-  btnSecondary: {
-    backgroundColor: "#333940", borderRadius: 8, padding: 14,
-    alignItems: "center", marginTop: 10,
-  },
-  btnSecondaryText: { color: "#fff", fontSize: 15 },
-  btnDanger: {
-    backgroundColor: "#3a1a1a", borderRadius: 8, padding: 14,
-    alignItems: "center", marginTop: 10,
-  },
-  btnDangerText: { color: "#ff6b6b", fontSize: 15 },
-  timer: { color: "#aaa", fontSize: 13, textAlign: "center", marginVertical: 12 },
-  linkWrap: { alignItems: "center", marginTop: 16 },
-  link: { color: "#ffd33d", fontSize: 14 },
-  error: { color: "#ff6b6b", fontSize: 13, textAlign: "center", marginBottom: 8 },
-  info: { color: "#22c55e", fontSize: 13, textAlign: "center", marginBottom: 8 },
-  bigIcon: { fontSize: 48, marginBottom: 12 },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    inner: { flexGrow: 1, padding: 24, paddingTop: 48 },
+    title: { fontSize: 26, fontWeight: "bold", color: c.primary, textAlign: "center", marginBottom: 24 },
+    stepsRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 24 },
+    stepItem: { flex: 1, alignItems: "center" },
+    stepCircle: {
+      width: 28, height: 28, borderRadius: 14,
+      backgroundColor: c.border, alignItems: "center", justifyContent: "center",
+    },
+    stepCircleActive: { backgroundColor: c.primary },
+    stepNum: { fontSize: 13, fontWeight: "bold", color: c.muted },
+    stepNumActive: { color: c.bg },
+    stepLabel: { fontSize: 10, color: c.muted, marginTop: 4, textAlign: "center" },
+    card: { backgroundColor: c.surface, borderRadius: 12, padding: 20 },
+    centered: { alignItems: "center" },
+    cardTitle: { fontSize: 18, fontWeight: "bold", color: c.text, textAlign: "center", marginBottom: 12 },
+    subtitle: { color: c.muted, fontSize: 13, textAlign: "center", marginBottom: 16 },
+    label: { color: c.textSecondary, fontSize: 14, marginBottom: 6 },
+    input: {
+      backgroundColor: c.border, color: c.text, borderRadius: 8,
+      padding: 14, marginBottom: 14, fontSize: 16,
+    },
+    suggestions: {
+      backgroundColor: c.cardBg, borderRadius: 8, marginTop: -10, marginBottom: 10,
+      borderWidth: 1, borderColor: c.border,
+    },
+    suggestion: { padding: 12, borderBottomWidth: 1, borderBottomColor: c.border },
+    suggestionText: { color: c.text, fontSize: 14 },
+    passwordRow: { flexDirection: "row", alignItems: "center", marginBottom: 14, gap: 8 },
+    eyeBtn: { padding: 10 },
+    eyeText: { fontSize: 18 },
+    rulesBox: { marginBottom: 8 },
+    rule: { color: c.muted, fontSize: 13, marginBottom: 2 },
+    ruleOk: { color: "#22c55e" },
+    strengthTrack: { height: 6, backgroundColor: c.border, borderRadius: 3, marginTop: 8 },
+    strengthFill: { height: 6, borderRadius: 3 },
+    btn: {
+      backgroundColor: c.primary, borderRadius: 8, padding: 16,
+      alignItems: "center", marginTop: 4,
+    },
+    btnDisabled: { opacity: 0.5 },
+    btnText: { color: c.bg, fontSize: 16, fontWeight: "bold" },
+    btnSecondary: {
+      backgroundColor: c.border, borderRadius: 8, padding: 14,
+      alignItems: "center", marginTop: 10,
+    },
+    btnSecondaryText: { color: c.text, fontSize: 15 },
+    btnDanger: {
+      backgroundColor: c.cardBg, borderRadius: 8, padding: 14,
+      alignItems: "center", marginTop: 10,
+    },
+    btnDangerText: { color: "#ff6b6b", fontSize: 15 },
+    timer: { color: c.muted, fontSize: 13, textAlign: "center", marginVertical: 12 },
+    linkWrap: { alignItems: "center", marginTop: 16 },
+    link: { color: c.primary, fontSize: 14 },
+    error: { color: "#ff6b6b", fontSize: 13, textAlign: "center", marginBottom: 8 },
+    info: { color: "#22c55e", fontSize: 13, textAlign: "center", marginBottom: 8 },
+    bigIcon: { fontSize: 48, marginBottom: 12 },
+  });
+}

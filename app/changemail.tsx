@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator, KeyboardAvoidingView, Platform,
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
@@ -7,10 +7,14 @@ import { useRouter } from "expo-router";
 import OtpInput from "../components/OtpInput";
 import { apiFetch, triggerUnauthorized } from "../utils/apiClient";
 import { useAuth } from "../contexts/AuthContext";
+import { useTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../theme";
 
 export default function ChangeMailScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [step, setStep]           = useState(1);
   const [newEmail, setNewEmail]   = useState("");
@@ -85,13 +89,11 @@ export default function ChangeMailScreen() {
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 401 && typeof data.remainingAttempts === "number") {
-          // Mauvais code — afficher le message, ne pas déconnecter
           setRemainingAttempts(data.remainingAttempts);
           setError(data.error || data.message || "Code incorrect.");
           return;
         }
         if (res.status === 401) {
-          // Vrai token expiré — déclencher le logout
           await triggerUnauthorized();
           return;
         }
@@ -147,7 +149,7 @@ export default function ChangeMailScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               placeholder="nouveau@email.com"
-              placeholderTextColor="#888"
+              placeholderTextColor={colors.muted}
               editable={!loading}
             />
             <Text style={styles.label}>Mot de passe actuel</Text>
@@ -158,7 +160,7 @@ export default function ChangeMailScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 placeholder="Mot de passe"
-                placeholderTextColor="#888"
+                placeholderTextColor={colors.muted}
                 editable={!loading}
                 autoComplete="current-password"
               />
@@ -172,7 +174,7 @@ export default function ChangeMailScreen() {
               disabled={!newEmail.trim() || !password || loading}
             >
               {loading
-                ? <ActivityIndicator color="#25292e" />
+                ? <ActivityIndicator color={colors.bg} />
                 : <Text style={styles.btnText}>Envoyer le code</Text>}
             </TouchableOpacity>
           </View>
@@ -194,7 +196,7 @@ export default function ChangeMailScreen() {
               disabled={code.length !== 4 || loading}
             >
               {loading
-                ? <ActivityIndicator color="#25292e" />
+                ? <ActivityIndicator color={colors.bg} />
                 : <Text style={styles.btnText}>Valider</Text>}
             </TouchableOpacity>
             <TouchableOpacity
@@ -217,30 +219,32 @@ export default function ChangeMailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#25292e" },
-  inner: { flexGrow: 1, padding: 24, paddingTop: 48 },
-  backBtn: { marginBottom: 16 },
-  backText: { color: "#ffd33d", fontSize: 15 },
-  title: { fontSize: 22, fontWeight: "bold", color: "#fff", marginBottom: 4 },
-  currentEmail: { color: "#888", fontSize: 13, marginBottom: 20 },
-  card: { backgroundColor: "#1e2227", borderRadius: 12, padding: 20 },
-  cardTitle: { fontSize: 17, fontWeight: "bold", color: "#fff", textAlign: "center", marginBottom: 8 },
-  subtitle: { color: "#aaa", fontSize: 13, textAlign: "center", marginBottom: 16 },
-  label: { color: "#ccc", fontSize: 14, marginBottom: 6 },
-  input: { backgroundColor: "#333940", color: "#fff", borderRadius: 8, padding: 14, marginBottom: 14, fontSize: 16 },
-  passwordRow: { flexDirection: "row", alignItems: "center", marginBottom: 0, gap: 8 },
-  eyeBtn: { padding: 10 },
-  eyeText: { fontSize: 18 },
-  btn: { backgroundColor: "#ffd33d", borderRadius: 8, padding: 16, alignItems: "center", marginTop: 4 },
-  btnDisabled: { opacity: 0.5 },
-  btnText: { color: "#25292e", fontSize: 16, fontWeight: "bold" },
-  btnSecondary: { backgroundColor: "#333940", borderRadius: 8, padding: 14, alignItems: "center", marginTop: 10 },
-  btnSecondaryText: { color: "#fff", fontSize: 15 },
-  timer: { color: "#aaa", fontSize: 13, textAlign: "center", marginVertical: 12 },
-  linkWrap: { alignItems: "center", marginTop: 16 },
-  link: { color: "#ffd33d", fontSize: 14 },
-  error: { color: "#ff6b6b", fontSize: 13, marginBottom: 12 },
-  warning: { color: "#f97316", fontSize: 13, textAlign: "center", marginBottom: 8 },
-  successMsg: { color: "#22c55e", fontSize: 14, textAlign: "center", marginBottom: 12 },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    inner: { flexGrow: 1, padding: 24, paddingTop: 48 },
+    backBtn: { marginBottom: 16 },
+    backText: { color: c.primary, fontSize: 15 },
+    title: { fontSize: 22, fontWeight: "bold", color: c.text, marginBottom: 4 },
+    currentEmail: { color: c.muted, fontSize: 13, marginBottom: 20 },
+    card: { backgroundColor: c.surface, borderRadius: 12, padding: 20 },
+    cardTitle: { fontSize: 17, fontWeight: "bold", color: c.text, textAlign: "center", marginBottom: 8 },
+    subtitle: { color: c.muted, fontSize: 13, textAlign: "center", marginBottom: 16 },
+    label: { color: c.textSecondary, fontSize: 14, marginBottom: 6 },
+    input: { backgroundColor: c.border, color: c.text, borderRadius: 8, padding: 14, marginBottom: 14, fontSize: 16 },
+    passwordRow: { flexDirection: "row", alignItems: "center", marginBottom: 0, gap: 8 },
+    eyeBtn: { padding: 10 },
+    eyeText: { fontSize: 18 },
+    btn: { backgroundColor: c.primary, borderRadius: 8, padding: 16, alignItems: "center", marginTop: 4 },
+    btnDisabled: { opacity: 0.5 },
+    btnText: { color: c.bg, fontSize: 16, fontWeight: "bold" },
+    btnSecondary: { backgroundColor: c.border, borderRadius: 8, padding: 14, alignItems: "center", marginTop: 10 },
+    btnSecondaryText: { color: c.text, fontSize: 15 },
+    timer: { color: c.muted, fontSize: 13, textAlign: "center", marginVertical: 12 },
+    linkWrap: { alignItems: "center", marginTop: 16 },
+    link: { color: c.primary, fontSize: 14 },
+    error: { color: "#ff6b6b", fontSize: 13, marginBottom: 12 },
+    warning: { color: "#f97316", fontSize: 13, textAlign: "center", marginBottom: 8 },
+    successMsg: { color: "#22c55e", fontSize: 14, textAlign: "center", marginBottom: 12 },
+  });
+}

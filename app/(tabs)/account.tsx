@@ -181,7 +181,8 @@ function makeStyles(c: ThemeColors) {
       marginTop: 8,
       borderWidth: 1,
       borderColor: c.border,
+      
     },
-    logoutText: { color: c.danger, fontSize: 16, fontWeight: "600" },
+    logoutText: { color: c.danger, fontSize: 18, fontWeight: "600" ,color: c.text,},
   });
 }

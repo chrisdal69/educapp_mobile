@@ -11,6 +11,8 @@ import {
 import { useRouter } from "expo-router";
 import { apiFetch } from "../utils/apiClient";
 import { useAuth } from "../contexts/AuthContext";
+import { useTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../theme";
 
 const CONFIRM_TEXT = "Elève à désinscrire";
 
@@ -44,6 +46,9 @@ function formatFrDate(value: string | null | undefined) {
 export default function ManageClassScreen() {
   const router  = useRouter();
   const { user } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const classId   = user?.classId ? String(user.classId) : "";
   const className = user?.publicname ?? "";
 
@@ -285,7 +290,7 @@ export default function ManageClassScreen() {
                 onPress={handleRegen}
                 disabled={!regenDur || regenLoading}
               >
-                {regenLoading ? <ActivityIndicator color="#25292e" size="small" /> : <Text style={styles.btnText}>Valider</Text>}
+                {regenLoading ? <ActivityIndicator color={colors.bg} size="small" /> : <Text style={styles.btnText}>Valider</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -311,7 +316,7 @@ export default function ManageClassScreen() {
               value={addNom}
               onChangeText={setAddNom}
               placeholder="Nom"
-              placeholderTextColor="#888"
+              placeholderTextColor={colors.muted}
               editable={!addLoading}
               autoCapitalize="words"
             />
@@ -320,7 +325,7 @@ export default function ManageClassScreen() {
               value={addPrenom}
               onChangeText={setAddPrenom}
               placeholder="Prénom"
-              placeholderTextColor="#888"
+              placeholderTextColor={colors.muted}
               editable={!addLoading}
               autoCapitalize="words"
             />
@@ -329,13 +334,13 @@ export default function ManageClassScreen() {
               onPress={handleAddStudent}
               disabled={!addNom.trim() || !addPrenom.trim() || addLoading}
             >
-              {addLoading ? <ActivityIndicator color="#25292e" size="small" /> : <Text style={styles.btnText}>Inscrire</Text>}
+              {addLoading ? <ActivityIndicator color={colors.bg} size="small" /> : <Text style={styles.btnText}>Inscrire</Text>}
             </TouchableOpacity>
           </View>
         )}
 
         {loading ? (
-          <ActivityIndicator color="#ffd33d" style={{ marginTop: 16 }} />
+          <ActivityIndicator color={colors.primary} style={{ marginTop: 16 }} />
         ) : students.length === 0 ? (
           <Text style={styles.empty}>Aucun élève inscrit.</Text>
         ) : (
@@ -370,7 +375,7 @@ export default function ManageClassScreen() {
                     disabled={!userId || isExcLoading}
                   >
                     {isExcLoading
-                      ? <ActivityIndicator size="small" color="#ffd33d" />
+                      ? <ActivityIndicator size="small" color={colors.primary} />
                       : <Text style={[styles.iconBtnText, !userId && styles.iconBtnDisabled]}>
                           {isExcVisible ? "👁" : "🚫👁"}
                         </Text>}
@@ -417,7 +422,7 @@ export default function ManageClassScreen() {
                   <View style={styles.panel}>
                     <Text style={styles.panelTitle}>Droits teacher</Text>
                     {reposLoading
-                      ? <ActivityIndicator color="#ffd33d" />
+                      ? <ActivityIndicator color={colors.primary} />
                       : repertoires.length === 0
                       ? <Text style={styles.empty}>Aucun répertoire.</Text>
                       : repertoires.map((rep) => (
@@ -441,7 +446,7 @@ export default function ManageClassScreen() {
                         onPress={() => handleSaveTeachers(st)}
                         disabled={isTeacherSaving}
                       >
-                        {isTeacherSaving ? <ActivityIndicator color="#25292e" size="small" /> : <Text style={styles.btnText}>Valider</Text>}
+                        {isTeacherSaving ? <ActivityIndicator color={colors.bg} size="small" /> : <Text style={styles.btnText}>Valider</Text>}
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -460,7 +465,7 @@ export default function ManageClassScreen() {
                       value={deleteConfirm}
                       onChangeText={setDeleteConfirm}
                       placeholder={CONFIRM_TEXT}
-                      placeholderTextColor="#888"
+                      placeholderTextColor={colors.muted}
                       editable={!isDeleting}
                     />
                     <View style={styles.rowBtns}>
@@ -486,65 +491,67 @@ export default function ManageClassScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#25292e" },
-  inner: { padding: 20, paddingTop: 48, paddingBottom: 40 },
-  backBtn: { marginBottom: 16 },
-  backText: { color: "#ffd33d", fontSize: 15 },
-  title: { fontSize: 22, fontWeight: "bold", color: "#fff", marginBottom: 2 },
-  subtitle: { fontSize: 15, color: "#aaa", marginBottom: 20 },
-  error: { color: "#ff6b6b", fontSize: 13, marginBottom: 12 },
-  section: { backgroundColor: "#1e2227", borderRadius: 12, padding: 16, marginBottom: 16 },
-  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  sectionTitle: { color: "#ffd33d", fontSize: 15, fontWeight: "700", marginBottom: 8 },
-  // Code
-  codeRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  codeValue: { color: "#fff", fontSize: 22, fontFamily: "monospace", fontWeight: "bold" },
-  codeExpiry: { color: "#aaa", fontSize: 12, marginTop: 2 },
-  regenBtn: { backgroundColor: "#333940", borderRadius: 8, padding: 10 },
-  regenBtnText: { color: "#ffd33d", fontSize: 13, fontWeight: "600" },
-  regenForm: { marginTop: 14, borderTopWidth: 1, borderTopColor: "#333", paddingTop: 12 },
-  regenOptions: { flexDirection: "row", gap: 8, marginBottom: 12 },
-  regenOpt: { flex: 1, backgroundColor: "#333940", borderRadius: 8, padding: 10, alignItems: "center" },
-  regenOptActive: { backgroundColor: "#ffd33d" },
-  regenOptText: { color: "#fff", fontSize: 13 },
-  regenOptTextActive: { color: "#25292e", fontWeight: "bold" },
-  // Add
-  addBtn: { backgroundColor: "#ffd33d", borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
-  addBtnText: { color: "#25292e", fontSize: 13, fontWeight: "700" },
-  addForm: { marginBottom: 12 },
-  // Student rows
-  studentRow: { padding: 12, borderRadius: 8, marginBottom: 4 },
-  studentRowAlt: { backgroundColor: "#252a30" },
-  studentName: { color: "#fff", fontSize: 14, fontWeight: "600" },
-  studentEmail: { color: "#888", fontSize: 12, marginTop: 2 },
-  actionBtns: { flexDirection: "row", gap: 8, marginBottom: 4 },
-  iconBtn: { backgroundColor: "#333940", borderRadius: 6, padding: 8, minWidth: 38, alignItems: "center" },
-  iconBtnActive: { backgroundColor: "#1a3a2a" },
-  iconBtnTeacher: { backgroundColor: "#2a1a3a" },
-  iconBtnDanger: { backgroundColor: "#2a1a1a" },
-  iconBtnText: { fontSize: 15 },
-  iconBtnDisabled: { opacity: 0.3 },
-  // Panel
-  panel: { backgroundColor: "#2a2f35", borderRadius: 8, padding: 12, marginTop: 8 },
-  panelTitle: { color: "#fff", fontSize: 14, fontWeight: "600", marginBottom: 10 },
-  deleteWarning: { color: "#f97316", fontSize: 12, marginBottom: 10 },
-  confirmPhrase: { color: "#ffd33d", fontWeight: "bold" },
-  checkRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
-  checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 2, borderColor: "#555", alignItems: "center", justifyContent: "center" },
-  checkboxChecked: { backgroundColor: "#ffd33d", borderColor: "#ffd33d" },
-  checkmark: { color: "#25292e", fontSize: 12, fontWeight: "bold" },
-  checkLabel: { color: "#fff", fontSize: 14 },
-  empty: { color: "#888", fontSize: 13, textAlign: "center", paddingVertical: 12 },
-  // Inputs & buttons
-  label: { color: "#ccc", fontSize: 13, marginBottom: 6 },
-  input: { backgroundColor: "#333940", color: "#fff", borderRadius: 8, padding: 12, marginBottom: 10, fontSize: 15 },
-  rowBtns: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
-  btn: { backgroundColor: "#ffd33d", borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10, alignItems: "center" },
-  btnDisabled: { opacity: 0.4 },
-  btnText: { color: "#25292e", fontSize: 14, fontWeight: "bold" },
-  btnSecondary: { backgroundColor: "#444", borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
-  btnSecondaryText: { color: "#fff", fontSize: 14 },
-  btnDanger: { backgroundColor: "#dc2626", borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
-  btnDangerText: { color: "#fff", fontSize: 14, fontWeight: "bold" },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    inner: { padding: 20, paddingTop: 48, paddingBottom: 40 },
+    backBtn: { marginBottom: 16 },
+    backText: { color: c.primary, fontSize: 15 },
+    title: { fontSize: 22, fontWeight: "bold", color: c.text, marginBottom: 2 },
+    subtitle: { fontSize: 15, color: c.muted, marginBottom: 20 },
+    error: { color: "#ff6b6b", fontSize: 13, marginBottom: 12 },
+    section: { backgroundColor: c.surface, borderRadius: 12, padding: 16, marginBottom: 16 },
+    sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+    sectionTitle: { color: c.primary, fontSize: 15, fontWeight: "700", marginBottom: 8 },
+    // Code
+    codeRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+    codeValue: { color: c.text, fontSize: 22, fontFamily: "monospace", fontWeight: "bold" },
+    codeExpiry: { color: c.muted, fontSize: 12, marginTop: 2 },
+    regenBtn: { backgroundColor: c.border, borderRadius: 8, padding: 10 },
+    regenBtnText: { color: c.primary, fontSize: 13, fontWeight: "600" },
+    regenForm: { marginTop: 14, borderTopWidth: 1, borderTopColor: c.border, paddingTop: 12 },
+    regenOptions: { flexDirection: "row", gap: 8, marginBottom: 12 },
+    regenOpt: { flex: 1, backgroundColor: c.border, borderRadius: 8, padding: 10, alignItems: "center" },
+    regenOptActive: { backgroundColor: c.primary },
+    regenOptText: { color: c.text, fontSize: 13 },
+    regenOptTextActive: { color: c.bg, fontWeight: "bold" },
+    // Add
+    addBtn: { backgroundColor: c.primary, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+    addBtnText: { color: c.bg, fontSize: 13, fontWeight: "700" },
+    addForm: { marginBottom: 12 },
+    // Student rows
+    studentRow: { padding: 12, borderRadius: 8, marginBottom: 4 },
+    studentRowAlt: { backgroundColor: c.cardBg },
+    studentName: { color: c.text, fontSize: 14, fontWeight: "600" },
+    studentEmail: { color: c.muted, fontSize: 12, marginTop: 2 },
+    actionBtns: { flexDirection: "row", gap: 8, marginBottom: 4 },
+    iconBtn: { backgroundColor: c.border, borderRadius: 6, padding: 8, minWidth: 38, alignItems: "center" },
+    iconBtnActive: { backgroundColor: "rgba(55,149,78,0.2)" },
+    iconBtnTeacher: { backgroundColor: "rgba(100,50,200,0.2)" },
+    iconBtnDanger: { backgroundColor: "rgba(220,38,38,0.18)" },
+    iconBtnText: { fontSize: 15 },
+    iconBtnDisabled: { opacity: 0.3 },
+    // Panel
+    panel: { backgroundColor: c.cardBg, borderRadius: 8, padding: 12, marginTop: 8 },
+    panelTitle: { color: c.text, fontSize: 14, fontWeight: "600", marginBottom: 10 },
+    deleteWarning: { color: "#f97316", fontSize: 12, marginBottom: 10 },
+    confirmPhrase: { color: c.primary, fontWeight: "bold" },
+    checkRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
+    checkbox: { width: 20, height: 20, borderRadius: 4, borderWidth: 2, borderColor: c.border, alignItems: "center", justifyContent: "center" },
+    checkboxChecked: { backgroundColor: c.primary, borderColor: c.primary },
+    checkmark: { color: c.bg, fontSize: 12, fontWeight: "bold" },
+    checkLabel: { color: c.text, fontSize: 14 },
+    empty: { color: c.muted, fontSize: 13, textAlign: "center", paddingVertical: 12 },
+    // Inputs & buttons
+    label: { color: c.textSecondary, fontSize: 13, marginBottom: 6 },
+    input: { backgroundColor: c.border, color: c.text, borderRadius: 8, padding: 12, marginBottom: 10, fontSize: 15 },
+    rowBtns: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
+    btn: { backgroundColor: c.primary, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10, alignItems: "center" },
+    btnDisabled: { opacity: 0.4 },
+    btnText: { color: c.bg, fontSize: 14, fontWeight: "bold" },
+    btnSecondary: { backgroundColor: c.border, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
+    btnSecondaryText: { color: c.text, fontSize: 14 },
+    btnDanger: { backgroundColor: "#dc2626", borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10 },
+    btnDangerText: { color: "#fff", fontSize: 14, fontWeight: "bold" },
+  });
+}

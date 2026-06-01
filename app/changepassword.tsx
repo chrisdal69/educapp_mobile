@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator, KeyboardAvoidingView, Platform,
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { apiFetch, triggerUnauthorized } from "../utils/apiClient";
+import { useTheme } from "../contexts/ThemeContext";
+import { ThemeColors } from "../theme";
 
 const PASSWORD_RULES = [
   { key: "length", label: "Au moins 8 caractères", test: (p: string) => p.length >= 8 },
@@ -17,6 +19,9 @@ const STRENGTH_COLORS = ["#dc2626", "#f97316", "#eab308", "#22c55e", "#16a34a"];
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const [oldPassword, setOldPassword]         = useState("");
   const [newPassword, setNewPassword]         = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -43,13 +48,11 @@ export default function ChangePasswordScreen() {
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 401 && typeof data.remainingAttempts === "number") {
-          // Mauvais ancien mot de passe — afficher le message, ne pas déconnecter
           setRemainingAttempts(data.remainingAttempts);
           setError(data.message || data.error || "Ancien mot de passe incorrect.");
           return;
         }
         if (res.status === 401) {
-          // Vrai token expiré — déclencher le logout
           await triggerUnauthorized();
           return;
         }
@@ -89,7 +92,7 @@ export default function ChangePasswordScreen() {
               onChangeText={setOldPassword}
               secureTextEntry={!showOld}
               placeholder="Mot de passe actuel"
-              placeholderTextColor="#888"
+              placeholderTextColor={colors.muted}
               editable={!loading}
               autoComplete="current-password"
             />
@@ -106,7 +109,7 @@ export default function ChangePasswordScreen() {
               onChangeText={setNewPassword}
               secureTextEntry={!showNew}
               placeholder="Nouveau mot de passe"
-              placeholderTextColor="#888"
+              placeholderTextColor={colors.muted}
               editable={!loading}
               autoComplete="new-password"
             />
@@ -139,7 +142,7 @@ export default function ChangePasswordScreen() {
               onChangeText={setConfirmPassword}
               secureTextEntry={!showConfirm}
               placeholder="Confirmation"
-              placeholderTextColor="#888"
+              placeholderTextColor={colors.muted}
               editable={!loading}
             />
             <TouchableOpacity onPress={() => setShowConfirm((v) => !v)} style={styles.eyeBtn}>
@@ -156,7 +159,7 @@ export default function ChangePasswordScreen() {
             disabled={!isValid || loading}
           >
             {loading
-              ? <ActivityIndicator color="#25292e" />
+              ? <ActivityIndicator color={colors.bg} />
               : <Text style={styles.btnText}>Changer le mot de passe</Text>}
           </TouchableOpacity>
         </View>
@@ -165,27 +168,29 @@ export default function ChangePasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#25292e" },
-  inner: { flexGrow: 1, padding: 24, paddingTop: 48 },
-  backBtn: { marginBottom: 16 },
-  backText: { color: "#ffd33d", fontSize: 15 },
-  title: { fontSize: 22, fontWeight: "bold", color: "#fff", marginBottom: 20 },
-  card: { backgroundColor: "#1e2227", borderRadius: 12, padding: 20 },
-  label: { color: "#ccc", fontSize: 14, marginBottom: 6 },
-  input: { backgroundColor: "#333940", color: "#fff", borderRadius: 8, padding: 14, marginBottom: 14, fontSize: 16 },
-  passwordRow: { flexDirection: "row", alignItems: "center", marginBottom: 14, gap: 8 },
-  eyeBtn: { padding: 10 },
-  eyeText: { fontSize: 18 },
-  rulesBox: { marginBottom: 4 },
-  rule: { color: "#888", fontSize: 13, marginBottom: 2 },
-  ruleOk: { color: "#22c55e" },
-  strengthTrack: { height: 6, backgroundColor: "#444", borderRadius: 3, marginTop: 8 },
-  strengthFill: { height: 6, borderRadius: 3 },
-  btn: { backgroundColor: "#ffd33d", borderRadius: 8, padding: 16, alignItems: "center" },
-  btnDisabled: { opacity: 0.5 },
-  btnText: { color: "#25292e", fontSize: 16, fontWeight: "bold" },
-  error: { color: "#ff6b6b", fontSize: 13, marginBottom: 8 },
-  warning: { color: "#f97316", fontSize: 13, marginBottom: 8 },
-  successMsg: { color: "#22c55e", fontSize: 14, textAlign: "center", marginBottom: 12 },
-});
+function makeStyles(c: ThemeColors) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.bg },
+    inner: { flexGrow: 1, padding: 24, paddingTop: 48 },
+    backBtn: { marginBottom: 16 },
+    backText: { color: c.primary, fontSize: 15 },
+    title: { fontSize: 22, fontWeight: "bold", color: c.text, marginBottom: 20 },
+    card: { backgroundColor: c.surface, borderRadius: 12, padding: 20 },
+    label: { color: c.textSecondary, fontSize: 14, marginBottom: 6 },
+    input: { backgroundColor: c.border, color: c.text, borderRadius: 8, padding: 14, marginBottom: 14, fontSize: 16 },
+    passwordRow: { flexDirection: "row", alignItems: "center", marginBottom: 14, gap: 8 },
+    eyeBtn: { padding: 10 },
+    eyeText: { fontSize: 18 },
+    rulesBox: { marginBottom: 4 },
+    rule: { color: c.muted, fontSize: 13, marginBottom: 2 },
+    ruleOk: { color: "#22c55e" },
+    strengthTrack: { height: 6, backgroundColor: c.border, borderRadius: 3, marginTop: 8 },
+    strengthFill: { height: 6, borderRadius: 3 },
+    btn: { backgroundColor: c.primary, borderRadius: 8, padding: 16, alignItems: "center" },
+    btnDisabled: { opacity: 0.5 },
+    btnText: { color: c.bg, fontSize: 16, fontWeight: "bold" },
+    error: { color: "#ff6b6b", fontSize: 13, marginBottom: 8 },
+    warning: { color: "#f97316", fontSize: 13, marginBottom: 8 },
+    successMsg: { color: "#22c55e", fontSize: 14, textAlign: "center", marginBottom: 12 },
+  });
+}
